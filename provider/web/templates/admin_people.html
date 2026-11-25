@@ -1,0 +1,40 @@
+{{define "admin_people"}}
+{{$addAction := "people/add"}}{{$removeAction := "people/remove"}}{{if .FromPost}}{{$addAction = "../people/add"}}{{$removeAction = "../people/remove"}}{{end}}{{$allowAction := "activity/allow"}}{{if .FromPost}}{{$allowAction = "../activity/allow"}}{{end}}
+<section class="card" aria-labelledby="add-title">
+  <h2 id="add-title">{{call .T "admin.people.add"}}</h2>
+  <p class="muted">{{call .T "admin.people.add.text"}}</p>
+  <form method="post" action="{{$addAction}}">
+    <input type="hidden" name="token" value="{{.Token}}">
+    <label for="person-input">{{call .T "admin.people.add.placeholder"}}</label>
+    <div class="actions"><input id="person-input" name="input" value="{{.Input}}" maxlength="200" required autocomplete="off"{{if .FieldError}} aria-invalid="true" aria-describedby="add-error"{{end}}><button class="primary">{{call .T "admin.people.add.submit"}}</button></div>
+    {{with .FieldError}}<p class="danger" id="add-error" role="alert">{{call $.T .}}</p>{{end}}
+  </form>
+  {{if .Suggestions}}<h3>{{call .T "admin.people.suggestions"}}</h3><p class="muted small">{{call .T "admin.people.suggestions.text"}}</p><ul class="suggestions">{{range .Suggestions}}
+    <li>{{template "person" .}}<form method="post" action="{{$addAction}}" data-confirm="{{call $.T "admin.people.allow.confirm" .Name}}"><input type="hidden" name="token" value="{{$.Token}}"><input type="hidden" name="input" value="{{.Entry}}"><button class="compact" aria-label="{{call $.T "admin.people.allow"}} {{.Name}}">{{call $.T "admin.people.allow"}}</button></form></li>
+  {{end}}</ul>{{end}}
+</section>
+<section class="card" aria-labelledby="people-title">
+<h2 id="people-title">{{call .T "admin.tab.people"}}</h2>
+{{if .DirectoryPartial}}<p class="notice notice-warning" role="status">{{call .T "admin.people.directory.partial"}}</p>{{end}}
+{{if .PlexServer}}<p class="muted">{{call .T "admin.people.directory.hint"}}</p>{{end}}
+<p class="muted small">{{call .T "admin.link.hint"}}</p>
+{{if .People}}
+{{if .ShowFilter}}<div class="filter" hidden><label for="people-filter">{{call .T "admin.people.filter"}}</label> <input id="people-filter" type="search"></div>{{end}}
+<ul class="people-list" aria-labelledby="people-title">{{range .People}}
+<li class="people-row{{if .Cannot}} restricted{{end}}" data-person>
+  <div class="people-who">{{template "person" .}}{{if .Cannot}}<span class="managed-note muted">{{call $.T "admin.people.cannot"}}</span>{{end}}</div>
+  <div class="people-source"><span class="sr-only">{{call $.T "admin.people.col.allowed_by"}}&nbsp;: </span>{{range .Tags}}<span class="tag">{{call $.T (print "admin.tag." .)}}</span>{{else}}—{{end}}{{if .Redundant}}<span class="managed-note redundant-note">{{call $.T "admin.people.redundant"}}</span>{{else if .Managed}}<span class="managed-note muted">{{call $.T "admin.people.managed_in_plex"}}</span>{{end}}</div>
+  {{template "person_actions" (personActions . $.T $.Token $removeAction)}}
+</li>{{end}}</ul>
+{{else}}
+  <p class="muted">{{call .T .Empty}}</p>
+{{end}}
+</section>
+{{end}}
+
+{{define "person_actions"}}{{$p := .Person}}{{$T := .T}}
+<div class="people-actions">
+  {{if $p.Subject}}<span class="copy-wrap"><button class="icon-button" type="button" aria-label="{{call $T "admin.link.copy"}}" title="{{call $T "admin.link.copy"}}" data-copy="{{$p.Subject}}" data-copied="{{call $T "admin.link.copied"}}" data-copy-error="{{call $T "admin.link.copy_error"}}"><svg class="i-copy" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V6a2 2 0 0 1 2-2h8"></path></svg><svg class="i-done" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></button><span class="copy-feedback" role="status" data-copy-status></span></span>{{else}}<span class="icon-slot" aria-hidden="true"></span>{{end}}
+  {{with $p.Entry}}<form method="post" action="{{$.Action}}" data-confirm="{{call $T "admin.people.remove.confirm" $p.Name}}"><input type="hidden" name="token" value="{{$.Token}}"><input type="hidden" name="entry" value="{{.}}"><button class="icon-button icon-danger" name="action" value="remove" aria-label="{{call $T "admin.people.remove"}} {{$p.Name}}" title="{{call $T "admin.people.remove"}}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg></button></form>{{else}}<span class="icon-slot" aria-hidden="true"></span>{{end}}
+</div>
+{{end}}

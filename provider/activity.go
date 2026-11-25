@@ -1,0 +1,117 @@
+package provider
+
+// Activity log: the latest access decisions with their references, kept in
+// Silo instance state.
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/json"
+	"fmt"
+	"time"
+)
+
+const (
+	activityKey   = "plex/activity/v1"
+	maxActivity   = 100
+	maxAnonymous  = 20 // entries with no account; anyone can trigger them
+	refAlphabet   = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+	refLength     = 6
+	outcomeAllow  = "allowed"
+	outcomeRefuse = "refused"
+)
+
+// ActivityEntry is one final sign-in decision. It never holds a token, PIN
+// code, claim, email or IP address.
+type ActivityEntry struct {
+	Ref      string     `json:"ref"`
+	At       time.Time  `json:"at"`
+	Outcome  string     `json:"outcome"`
+	Rule     Rule       `json:"rule,omitempty"`
+	Reason   ReasonCode `json:"reason,omitempty"`
+	UUID     string     `json:"uuid,omitempty"`
+	Username string     `json:"username,omitempty"`
+	Title    string     `json:"title,omitempty"`
+	Thumb    string     `json:"thumb,omitempty"`
+}
+
+// newRef returns a random six-character reference without look-alike
+// characters. It identifies an activity entry; it is not a secret.
+func newRef() string {
+	b := make([]byte, refLength)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("crypto/rand: %v", err)) // never fails on supported platforms
+	}
+	for i := range b {
+		b[i] = refAlphabet[int(b[i])%len(refAlphabet)]
+	}
+	return string(b)
+}
+
+// newActivity builds the entry for a decision about user.
+func newActivity(ref string, decision Decision, user plexUser) ActivityEntry {
+	entry := ActivityEntry{
+		Ref:      ref,
+		At:       time.Now().UTC(),
+		Outcome:  outcomeRefuse,
+		Reason:   decision.Reason,
+		UUID:     user.UUID,
+		Username: publicName(user.Username),
+		Title:    publicName(user.Title),
+		Thumb:    safeAvatar(user.Thumb),
+	}
+	if decision.Allowed {
+		entry.Outcome, entry.Rule, entry.Reason = outcomeAllow, decision.Rule, ReasonNone
+	}
+	return entry
+}
+
+// pushActivity puts entry first and keeps at most maxActivity entries.
+func pushActivity(entries []ActivityEntry, entry ActivityEntry) []ActivityEntry {
+	entries = append([]ActivityEntry{entry}, entries...)
+	// Untrusted failures can be triggered by anyone, even when a valid but
+	// expired flow reveals an account UUID. Keep only the newest few so they
+	// never push out genuine access decisions.
+	untrusted := 0
+	kept := entries[:0]
+	for _, e := range entries {
+		if e.UUID == "" || e.Reason == ReasonExpired || e.Reason == ReasonClaimed {
+			if untrusted++; untrusted > maxAnonymous {
+				continue
+			}
+		}
+		kept = append(kept, e)
+	}
+	entries = kept
+	if len(entries) > maxActivity {
+		entries = entries[:maxActivity]
+	}
+	return entries
+}
+
+// recordActivity stores entry and logs the decision. A storage failure is
+// logged and never blocks sign-in.
+func (p *Provider) recordActivity(ctx context.Context, entry ActivityEntry) {
+	logger.Info("sign-in decision", "ref", entry.Ref, "outcome", entry.Outcome, "rule", entry.Rule, "reason", entry.Reason)
+	err := p.update(ctx, activityKey, func(current []byte, found bool) ([]byte, error) {
+		var entries []ActivityEntry
+		if found && len(current) > 0 {
+			if err := json.Unmarshal(current, &entries); err != nil {
+				return nil, fmt.Errorf("decode activity: %w", err)
+			}
+		}
+		return json.Marshal(pushActivity(entries, entry))
+	})
+	if err != nil {
+		logger.Warn("record activity", "ref", entry.Ref, "error", err)
+	}
+}
+
+// loadActivity returns the stored activity, newest first.
+func (p *Provider) loadActivity(ctx context.Context) ([]ActivityEntry, error) {
+	var entries []ActivityEntry
+	if _, err := p.read(ctx, activityKey, &entries); err != nil {
+		return nil, err
+	}
+	return entries, nil
+}

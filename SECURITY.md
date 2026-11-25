@@ -22,9 +22,11 @@ about the following are in scope:
 - the administration pages: access control, form protection and escaping;
 - the Plex account data passed to Silo or kept in the activity log.
 
-Known and accepted: a person who approves on Plex a sign-in link someone else
-sent them signs that sender in as themselves. This is inherent to Plex's PIN
-approval and is described in the README.
+Plex PIN approval carries a phishing risk: a person can be tricked into
+approving a PIN requested by someone else. Only approve a Plex request if you
+started the sign-in yourself and recognize the Silo server. After approval,
+the browser that opened the flow completes the Silo sign-in. See the README
+for user guidance.
 
 Vulnerabilities in Plex or Silo themselves should be reported to those
 projects. This plugin is not affiliated with Plex, Inc. or Silo.

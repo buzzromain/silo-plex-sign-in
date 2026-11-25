@@ -1,8 +1,8 @@
 # UI screenshots
 
-These 24 screenshots were regenerated on 2026-11-25 from the current repository templates and embedded static assets using `PLEX_SSO_PREVIEW_DIR` and the `TestWritePreviews` fixture, then rendered in headless Chrome. They represent the current plugin UI, not a live Silo host or Plex authentication website. The test data is synthetic; no real Plex accounts, emails, identifiers, access tokens, PINs, or server URLs are shown.
+These screenshots are generated from the current repository templates and embedded static assets with the `TestWritePreviews` fixture, then rendered in headless Chrome. They show the plugin UI, not a live Silo host or Plex's authentication website. All test data is synthetic; no real Plex accounts, emails, identifiers, access tokens, PINs, or server URLs are included.
 
-The interface is English only; files are prefixed `en-`. `390` is the mobile viewport width; `1440` is desktop. `light` and `dark` identify the sign-in page theme. Admin screenshots use the Silo Cinema Dark theme.
+The interface is English only; filenames use the `en-` prefix. `390` denotes the mobile viewport width and `1440` the desktop width. `light` and `dark` identify the sign-in page theme. Admin screenshots use Silo's Cinema Dark theme.
 
 ## Sign-in screens
 

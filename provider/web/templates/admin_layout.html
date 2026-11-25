@@ -1,0 +1,29 @@
+{{define "admin_layout.html"}}<!doctype html>
+<html lang="{{.Lang}}">
+<head>{{template "admin_head" .}}<title>{{call .T "admin.title"}}</title></head>
+<body><main class="shell">
+  <header class="page-header">
+    <div><h1>{{call .T "admin.title"}}</h1><p class="muted">{{call .T "admin.intro"}}</p></div>
+    <div class="status-stack"><p class="badge {{.AccessStatus.State}}">{{call .T (print "admin.status." .AccessStatus.State)}}</p><p class="status-hint">{{call .T (print "admin.status.hint." .AccessStatus.State)}}</p></div>
+  </header>
+  {{$base := "access"}}{{if .FromPost}}{{$base = "../access"}}{{end}}
+  <nav class="tabs" aria-label="{{call .T "admin.title"}}">
+    <a href="{{$base}}?tab=access"{{if eq .Tab "access"}} aria-current="page"{{end}}>{{call .T "admin.tab.access"}}</a>
+    <a href="{{$base}}?tab=people"{{if eq .Tab "people"}} aria-current="page"{{end}}>{{call .T "admin.tab.people"}}</a>
+    <a href="{{$base}}?tab=activity"{{if eq .Tab "activity"}} aria-current="page"{{end}}>{{call .T "admin.tab.activity"}}{{if .Refusals}} <span class="tag tag-alert" aria-hidden="true">{{.Refusals}}</span><span class="sr-only"> ({{call .T "admin.activity.refusals" .Refusals}})</span>{{end}}</a>
+  </nav>
+  {{with .Notice}}<p class="notice" role="status">{{call $.T .}}</p>{{end}}
+  {{if eq .Tab "people"}}{{template "admin_people" .}}{{else if eq .Tab "activity"}}{{template "admin_activity" .}}{{else}}{{template "admin_access" .}}{{end}}
+</main></body></html>{{end}}
+
+{{define "admin_head"}}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<meta http-equiv="Content-Security-Policy" content="{{.CSP}}">
+<meta name="referrer" content="no-referrer">
+<link rel="stylesheet" href="{{.Assets}}admin.css?v={{assetVersion}}">
+<script src="{{.Assets}}admin.js?v={{assetVersion}}" defer></script>
+{{end}}
+
+{{define "person"}}<div class="person">{{template "avatar" .}}<div>{{if .Anonymous}}<span class="muted">{{.Name}}</span>{{else}}<strong>{{.Name}}</strong>{{end}}{{with .Username}}<span class="muted">{{.}}</span>{{end}}{{with .Email}}<span class="muted email">{{.}}</span>{{end}}</div></div>{{end}}

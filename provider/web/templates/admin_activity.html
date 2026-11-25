@@ -1,0 +1,25 @@
+{{define "admin_activity"}}
+{{$b := "access"}}{{$allowAction := "activity/allow"}}{{if .FromPost}}{{$b = "../access"}}{{$allowAction = "../activity/allow"}}{{end}}
+<section class="card" aria-labelledby="activity-title">
+<div class="card-head"><h2 id="activity-title">{{call .T "admin.activity.title"}}</h2>
+{{if .HasActivity}}<nav class="segmented" aria-label="{{call .T "admin.activity.filter.label"}}"><a href="{{$b}}?tab=activity"{{if not .RefusedOnly}} aria-current="true"{{end}}>{{call .T "admin.activity.filter.all"}}</a><a href="{{$b}}?tab=activity&amp;show=refused"{{if .RefusedOnly}} aria-current="true"{{end}}>{{call .T "admin.activity.filter.refused"}}</a></nav>{{end}}</div>
+{{if .HasActivity}}<form class="ref-search" method="get" action="{{$b}}" role="search"><input type="hidden" name="tab" value="activity">{{if .RefusedOnly}}<input type="hidden" name="show" value="refused">{{end}}<label for="ref-input">{{call .T "admin.activity.find"}}</label><div class="actions"><input id="ref-input" name="ref" value="{{.Ref}}" maxlength="12" autocomplete="off" spellcheck="false" placeholder="7KQ-4M2"{{if .RefNotFound}} aria-invalid="true" aria-describedby="ref-error"{{end}}><button>{{call .T "admin.activity.find.submit"}}</button></div>{{if .RefNotFound}}<p class="danger small" id="ref-error" role="alert">{{call .T "admin.activity.find.none"}}</p>{{end}}</form>{{end}}
+{{if .Activity}}
+<ul class="activity-list" aria-labelledby="activity-title">{{range .Activity}}
+<li class="activity-row{{if .Highlight}} highlight{{end}}" data-activity{{if .Highlight}} id="ref-match" tabindex="-1"{{end}}>
+  <div class="activity-who">{{template "person" .Person}}</div>
+  <div class="activity-result">
+    <span class="outcome {{if .Allowed}}is-allowed{{else if .Interrupted}}is-interrupted{{else}}is-refused{{end}}">{{.Status}}</span>
+    <span class="muted">{{.Detail}}</span>
+  </div>
+  <div class="activity-meta">
+    <span><time datetime="{{.DateTime}}" title="{{.Absolute}}">{{.When}}</time> <span class="activity-date" data-local-date="{{.DateTime}}">{{.Absolute}}</span></span>
+    <span><span class="sr-only">{{call $.T "admin.activity.col.ref"}}&nbsp;: </span><code>{{formatRef .Ref}}</code></span>
+  </div>
+  {{if .Listed}}<div class="activity-actions"><span class="tag">{{call $.T "admin.activity.listed"}}</span></div>{{end}}
+  {{if .Allow}}<div class="activity-actions"><form method="post" action="{{$allowAction}}" data-confirm="{{call $.T "admin.activity.allow.confirm" .Person.Name}}"><input type="hidden" name="token" value="{{$.Token}}"><input type="hidden" name="ref" value="{{.Ref}}"><button class="compact" name="action" value="allow" aria-label="{{call $.T "admin.activity.allow"}}: {{.Person.Name}}">{{call $.T "admin.activity.allow"}}</button></form></div>{{end}}
+</li>{{end}}</ul>
+<p class="muted small activity-retention">{{call .T "admin.activity.retention" .ActivityLimit .IncompleteLimit}}</p>
+{{else}}<p class="muted">{{if .RefusedOnly}}{{call .T "admin.activity.empty_refused"}}{{else}}{{call .T "admin.activity.empty"}}{{end}}</p>{{end}}
+</section>
+{{end}}

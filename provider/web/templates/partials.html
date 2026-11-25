@@ -1,0 +1,2 @@
+{{/* Shared partials. Both surfaces use the same avatar markup. */}}
+{{define "avatar"}}{{if .Anonymous}}<span class="avatar avatar-anonymous" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg></span>{{else}}<span class="avatar" aria-hidden="true"><span>{{initials .Name}}</span>{{with safeAvatar .Thumb}}<img src="{{.}}" alt="" loading="lazy" referrerpolicy="no-referrer">{{end}}</span>{{end}}{{end}}

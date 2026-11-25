@@ -2,8 +2,8 @@
 
 Plex Sign-In v0.1.0 is a community Silo plugin that adds a **Plex** button to
 the Silo sign-in page. People sign in with their Plex account, and only people
-you allow can get in: those who have access to your Plex Media Server, and
-those you add to a manual list.
+you allow can get in: those Plex reports as able to access the server selected
+in Silo, and people you add to a manual list.
 
 > **Unofficial plugin.** Plex Sign-In is an independent community project. It
 > is not a Plex product and is not affiliated with, sponsored, or endorsed by
@@ -21,18 +21,25 @@ those you add to a manual list.
   their Plex password.
 - After approval, the plugin allows the sign-in only when one of these sources
   matches:
-  - **Plex server**: the person has access to the Plex Media Server you
-    selected;
+  - **Selected Plex server**: Plex reports that the person can access the
+    specific Plex Media Server selected in Silo. The plugin does not check
+    access library by library;
   - **Manual list**: the person's Plex username, or confirmed Plex email, is on
-    the list you manage.
+    the list you manage, whether or not they can access that server.
+- The **Users** tab can show the owner, eligible Plex Home members, and people
+  invited to shares on any server owned by the connected Plex account. This is
+  the owner's visible directory, not a list of everyone allowed by the
+  selected-server rule. People in that directory who lack access to the
+  selected server need to be added to the manual list to sign in.
 - Plex Home managed users and guest accounts are always refused.
 - Silo creates or links the Silo account; the plugin never assigns Silo roles
   or groups.
 - Adds a **Plex Sign-In** page to Silo's administration (`http_routes.v1`) to
   connect the server, manage the manual list and review recent sign-ins.
 
-The plugin only reads from Plex. It never creates shares, sends invitations or
-changes Plex settings. The interface is in English.
+The plugin reads Plex account and access information and creates sign-in PINs.
+It never creates shares, sends invitations or changes Plex settings. The
+interface is in English.
 
 ## Requirements
 
@@ -44,10 +51,12 @@ changes Plex settings. The interface is in English.
 
 ## Installation
 
-Install Plex Sign-In from Silo's plugin administration. Each GitHub release
-also provides the `plugin-linux-amd64` and `plugin-linux-arm64` binaries with a
+**Planned distribution:** after the GitHub repository is created, the intended
+installation path is Silo's plugin administration. The planned GitHub releases
+will provide `plugin-linux-amd64` and `plugin-linux-arm64` binaries with a
 `checksums.txt` file. Templates, styles and the icon are built into the binary;
-there is nothing else to install.
+there will be nothing else to install. The repository and its releases are not
+publicly available yet, so catalog installation is not currently available.
 
 ## Usage
 
@@ -57,18 +66,30 @@ Open **Plex Sign-In** from Silo's administration navigation. The page has
 three tabs.
 
 - **Plex**: choose **Connect Plex**, approve the request on Plex with the
-  account that owns your server, then select the server. Everyone who has
-  access to that server can now sign in. **Change server** picks another one;
+  account that owns your server, then select the server. People Plex reports as
+  able to access that server can sign in. **Change server** picks another one;
   **Disconnect** forgets the stored Plex connection and keeps the manual list.
-- **Users**: add a Plex username or email for someone who does not have access
-  to the server. The list shows both sources, and each person's Plex ID once
-  they have signed in.
+- **Users**: the list shows people allowed by the selected server, manual
+  entries, and the owner account's visible Plex directory. That directory
+  includes eligible Plex Home members and people invited to shares on any
+  server owned by the connected account. People shared on another server are
+  not automatically allowed by the selected-server rule. You can add them to
+  the manual list. Each person's Plex ID appears after their first sign-in.
 - **Activity**: the latest 100 sign-in decisions, allowed or denied. A denied
-  person can be added to the manual list from here with **Add to manual list**,
+  person can be added to the manual list from here with **Allow sign-in**,
   without changing Plex sharing.
 
-Sign-in is ready as soon as a server is selected or the manual list has one
-entry. Until then, every Plex sign-in is refused.
+The admin badge reports whether an access source is configured; it does not
+check whether Plex is currently reachable or whether the owner's token is
+valid. A server or one manual entry is enough to configure access, but sign-in
+still depends on the required Plex requests succeeding. Until an access source is configured, every
+Plex sign-in is refused.
+
+Sign-in and server-connection flows are held in process memory for up to 10
+minutes. If Silo routes a flow's return or polling request to another plugin
+process, that process will not have the flow; the person must restart the
+sign-in. Deployments with multiple plugin processes should use session affinity
+for these routes, if available.
 
 ### Sign in
 
@@ -110,8 +131,8 @@ The plugin makes outbound HTTPS requests to `https://plex.tv` only:
 - `GET /api/v2/resources`: check whether the account can reach the selected
   Plex Media Server, and list the owner's servers when connecting;
 - `GET /api/v2/home/users` and `GET /api/v2/shared_servers/owned/accepted`:
-  list the server owner's Plex Home members and the users who accepted a
-  share, for the **Users** tab;
+  list the connected owner's Plex Home members and users who accepted shares
+  on any of that owner's servers, for the **Users** tab;
 - `GET /api/v2/ping`: Silo's connection test.
 
 The person's browser is sent to `https://app.plex.tv` to approve the request.
@@ -122,25 +143,29 @@ directly.
 
 - **Sent to Silo at sign-in:** Plex account ID, username, display name, email
   with Plex's confirmation status, avatar URL, and the person's Plex token.
-  Silo stores the token as the account's refresh state and sends it back for
-  re-checks; the plugin itself does not keep it.
+  The plugin holds the token briefly in memory while finishing the flow, then
+  returns it to Silo as refresh state. Silo stores it and sends it back for
+  re-checks; the plugin does not persist the person's token.
 - **Stored by the plugin in Silo instance state:** the manual list, the
   selected server, the server owner's Plex token, and the activity log. Silo
   is responsible for protecting its instance state.
-- **Activity log:** at most 100 decisions, with the Plex account ID and limited
-  display fields; anonymous failures are capped separately.
+- **Activity log:** stores the newest 100 sign-in attempts, not a fixed number
+  of days. New attempts evict older entries. It records the Plex account ID and
+  limited display fields; untrusted failures are capped separately.
 - **Owner token:** used to read server-access information. **Disconnect**
   forgets it in the plugin; signing out of Silo does not revoke Plex tokens.
-- **Pending sign-ins** are kept in memory for up to 10 minutes. A plugin
-  restart can require the person to start again.
+- **Pending sign-ins** are kept in memory for up to 10 minutes. After Plex
+  approval, the person's Plex token is held in memory until Silo exchanges the
+  one-time code or the flow expires; it is then returned to Silo as refresh
+  state and is not persisted by the plugin. A plugin restart can require the
+  person to start again.
 - Sign-in uses Plex's PIN approval, not OpenID Connect. Keep plugin and OAuth
   callback URLs out of access logs and diagnostic captures: they carry
   short-lived sign-in values.
-- Like any PIN-based sign-in, a sign-in link can be sent to someone else. If
-  they approve it on Plex, the sender's browser is signed in to Silo as them.
-  The plugin only lets the browser that opened the link finish the sign-in,
-  and links expire after 10 minutes; tell your users to approve only Plex
-  requests they started themselves.
+- A Plex sign-in uses a PIN approval. A person can be tricked into approving a
+  PIN requested by someone else. Only approve a Plex request if they started
+  this sign-in themselves and recognize the Silo server. After approval, the
+  browser that opened the flow can finish it. Flows expire after 10 minutes.
 - The server rule trusts what Plex reports for each account. A server the
   account owns only counts for the Plex account that connected it, so another
   person cannot get in by running a server with the same identifier.
