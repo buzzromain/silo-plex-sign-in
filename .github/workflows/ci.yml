@@ -1,0 +1,21 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: make check-version vet test
+      - run: make vuln
+      - name: Build both platforms and print checksums
+        run: |
+          make build build-arm64
+          (cd dist && sha256sum plugin-linux-*)

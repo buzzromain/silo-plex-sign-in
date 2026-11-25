@@ -1,0 +1,28 @@
+name: Release
+
+# A release is a merged change that sets manifest.json "version", then a
+# maintainer pushes the matching v<version> tag on main. The shared workflow
+# refuses tags that are not v<semver>, not on main, or that disagree with
+# manifest.json.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions: {}
+
+jobs:
+  release:
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    # Always @main, never a SHA: verifiers pin the signer identity to
+    # plugin-release.yml@refs/heads/main.
+    uses: Silo-Server/.github/.github/workflows/plugin-release.yml@main
+    with:
+      # Must match supported_platforms in manifest.json.
+      platforms: linux/amd64,linux/arm64
+      catalog_repository: Silo-Community/silo-plugins
+    secrets:
+      dispatch_token: ${{ secrets.SILO_PLUGINS_DISPATCH_TOKEN }}
