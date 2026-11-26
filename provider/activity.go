@@ -16,6 +16,7 @@ import (
 
 const (
 	activityKey       = "plex/activity/v1"
+	activityVersion   = 1
 	maxActivity       = 100
 	activityRetention = 30 * 24 * time.Hour // how long a decision stays visible
 	maxAnonymous      = 20                  // entries with no account; anyone can trigger them
@@ -24,6 +25,13 @@ const (
 	outcomeAllow      = "allowed"
 	outcomeRefuse     = "refused"
 )
+
+// activityFile is the stored activity document. The version field lets a
+// later release migrate entries instead of reading an unknown format.
+type activityFile struct {
+	Version int             `json:"version"`
+	Entries []ActivityEntry `json:"entries"`
+}
 
 // ActivityEntry is one final sign-in decision. It never holds a token, PIN
 // code, claim, email or IP address: the username and confirmed email are
@@ -147,11 +155,12 @@ func (p *Provider) recordActivity(ctx context.Context, entry ActivityEntry) {
 	err := p.update(ctx, activityKey, func(current []byte, found bool) ([]byte, error) {
 		var entries []ActivityEntry
 		if found && len(current) > 0 {
-			if err := json.Unmarshal(current, &entries); err != nil {
-				return nil, fmt.Errorf("decode activity: %w", err)
+			var err error
+			if entries, err = decodeActivity(current); err != nil {
+				return nil, err
 			}
 		}
-		return json.Marshal(pushActivity(entries, entry))
+		return json.Marshal(activityFile{Version: activityVersion, Entries: pushActivity(entries, entry)})
 	})
 	if err != nil {
 		logger.Warn("record activity", "ref", entry.Ref, "error", err)
@@ -160,9 +169,33 @@ func (p *Provider) recordActivity(ctx context.Context, entry ActivityEntry) {
 
 // loadActivity returns the stored activity, newest first.
 func (p *Provider) loadActivity(ctx context.Context) ([]ActivityEntry, error) {
-	var entries []ActivityEntry
-	if _, err := p.read(ctx, activityKey, &entries); err != nil {
+	raw, found, err := p.readRaw(ctx, activityKey)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, nil
+	}
+	entries, err := decodeActivity(raw)
+	if err != nil {
 		return nil, err
 	}
 	return pruneActivity(entries, time.Now()), nil
+}
+
+// decodeActivity reads the versioned document, and the bare array written by
+// releases before the document carried a version.
+func decodeActivity(raw []byte) ([]ActivityEntry, error) {
+	var file activityFile
+	if err := json.Unmarshal(raw, &file); err == nil && file.Version != 0 {
+		if file.Version != activityVersion {
+			return nil, fmt.Errorf("unsupported activity version %d (want %d)", file.Version, activityVersion)
+		}
+		return file.Entries, nil
+	}
+	var entries []ActivityEntry
+	if err := json.Unmarshal(raw, &entries); err != nil {
+		return nil, fmt.Errorf("decode activity: %w", err)
+	}
+	return entries, nil
 }

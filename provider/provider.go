@@ -301,69 +301,13 @@ func parsePublicForm(req *pluginv1.HandleHTTPRequest) (url.Values, int) {
 	return form, http.StatusOK
 }
 
+// Handle dispatches one HTTP route. The table in routes.go owns the path,
+// method, Silo access level and handler of every route.
 func (p *Provider) Handle(ctx context.Context, req *pluginv1.HandleHTTPRequest) (*pluginv1.HandleHTTPResponse, error) {
 	if req == nil {
-		return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
+		return httpResponse(http.StatusMethodNotAllowed, contentTypeText, "method not allowed"), nil
 	}
-	if strings.HasPrefix(req.GetPath(), "/assets/") {
-		if req.GetMethod() != http.MethodGet {
-			return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
-		}
-		return serveAsset(req.GetPath()), nil
-	}
-	switch req.GetPath() {
-	case accessPath:
-		if req.GetMethod() != http.MethodGet {
-			return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
-		}
-		return p.handleAdmin(ctx, req), nil
-	case peopleAddPath, peopleRemovePath, activityAllowPath, disconnectPath:
-		if req.GetMethod() != http.MethodPost {
-			return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
-		}
-		return p.handleAdmin(ctx, req), nil
-	case activityExportPath:
-		if req.GetMethod() != http.MethodGet {
-			return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
-		}
-		return p.exportActivity(ctx, req), nil
-	case finderPath:
-		if req.GetMethod() != http.MethodGet {
-			return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
-		}
-		return p.handleFinder(ctx, req), nil
-	case finderStartPath, finderStatusPath, finderSelectPath:
-		if req.GetMethod() != http.MethodPost {
-			return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
-		}
-		return p.handleFinder(ctx, req), nil
-	}
-	if req.GetPath() == "/plex/start" {
-		if req.GetMethod() != http.MethodGet {
-			return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
-		}
-		var query map[string]any
-		if req.GetQuery() != nil {
-			query = req.GetQuery().AsMap()
-		}
-		flowID, _ := query["flow"].(string)
-		claim, _ := query["claim"].(string)
-		return p.startPage(ctx, req, flowID, claim), nil
-	}
-	if req.GetPath() == "/plex/status" {
-		if req.GetMethod() != http.MethodPost {
-			return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
-		}
-		form, status := parsePublicForm(req)
-		if status != http.StatusOK {
-			return httpResponse(status, contentTypeText, "invalid request"), nil
-		}
-		return p.status(ctx, form.Get("flow"), form.Get("claim")), nil
-	}
-	if strings.HasPrefix(req.GetPath(), "/admin/") {
-		return httpResponse(http.StatusNotFound, contentTypeText, "not found"), nil
-	}
-	return httpResponse(http.StatusNotFound, "text/plain; charset=utf-8", "not found"), nil
+	return p.dispatch(ctx, req), nil
 }
 
 // identity converts a Plex account into the identity sent to Silo. The

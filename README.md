@@ -183,6 +183,17 @@ directly.
 Operators should provide their own retention and privacy information suited to
 their deployment.
 
+## Operational notes
+
+- Pending sign-in and **Connect Plex** flows live in the plugin process memory
+  for up to 10 minutes. Restarting the plugin cancels them. If several Silo
+  API instances front the same installation, a pending flow must reach the
+  process that created it.
+- Settings, the Plex connection and the activity log live in Silo instance
+  state, so they survive a restart and are shared between instances.
+- The activity log is a support view, not the security record. Silo's own
+  logs and session list remain authoritative.
+
 ## Screenshots
 
 The screenshots in [`docs/screenshots`](docs/screenshots/README.md) use

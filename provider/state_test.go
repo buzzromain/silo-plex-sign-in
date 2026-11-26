@@ -210,3 +210,44 @@ func TestConnectionRoundTripAndDisconnectKeepsSettings(t *testing.T) {
 		t.Fatalf("disconnect must keep settings: %+v", settings)
 	}
 }
+
+func TestMigrateJSONRunsEachStepInOrder(t *testing.T) {
+	raw := []byte(`{"version":1,"name":"alex"}`)
+	steps := map[int]jsonStep{
+		1: func(object map[string]json.RawMessage) error {
+			object["email"] = json.RawMessage(`"alex@example.test"`)
+			return nil
+		},
+		2: func(object map[string]json.RawMessage) error {
+			delete(object, "name")
+			return nil
+		},
+	}
+	upgraded, err := migrateJSON(raw, 1, 3, steps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var object map[string]any
+	if err := json.Unmarshal(upgraded, &object); err != nil {
+		t.Fatal(err)
+	}
+	if object["version"] != float64(3) || object["email"] != "alex@example.test" {
+		t.Fatalf("migration result: %s", upgraded)
+	}
+	if _, ok := object["name"]; ok {
+		t.Fatalf("step 2 did not run: %s", upgraded)
+	}
+}
+
+func TestMigrateJSONFailsClosed(t *testing.T) {
+	if _, err := migrateJSON([]byte(`{"version":2}`), 2, 1, nil); err == nil {
+		t.Fatal("a downgrade must fail")
+	}
+	if _, err := migrateJSON([]byte(`{"version":1}`), 1, 2, map[int]jsonStep{}); err == nil {
+		t.Fatal("a missing step must fail")
+	}
+	raw := []byte(`{"version":1}`)
+	if got, err := migrateJSON(raw, 1, 1, nil); err != nil || string(got) != string(raw) {
+		t.Fatalf("same version must be returned unchanged: %s %v", got, err)
+	}
+}

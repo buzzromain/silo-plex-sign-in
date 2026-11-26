@@ -27,21 +27,7 @@ func manifestWithHTTPRoutes() (*pluginv1.PluginManifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := manifest.RegisterHTTPRoutes(m,
-		&pluginv1.HttpRouteDescriptor{Id: "plex-start", Method: "GET", Path: "/plex/start", Access: "public"},
-		&pluginv1.HttpRouteDescriptor{Id: "plex-status", Method: "POST", Path: "/plex/status", Access: "public"},
-		&pluginv1.HttpRouteDescriptor{Id: "plex-assets", Method: "GET", Path: "/assets/*", Access: "public"},
-		&pluginv1.HttpRouteDescriptor{Id: "access-page", Method: "GET", Path: "/admin/access", Access: "admin", Navigable: true, NavigationLabel: "Plex Sign-In", NavigationKind: "admin"},
-		&pluginv1.HttpRouteDescriptor{Id: "people-add", Method: "POST", Path: "/admin/people/add", Access: "admin"},
-		&pluginv1.HttpRouteDescriptor{Id: "people-remove", Method: "POST", Path: "/admin/people/remove", Access: "admin"},
-		&pluginv1.HttpRouteDescriptor{Id: "activity-allow", Method: "POST", Path: "/admin/activity/allow", Access: "admin"},
-		&pluginv1.HttpRouteDescriptor{Id: "activity-export", Method: "GET", Path: "/admin/activity/export", Access: "admin"},
-		&pluginv1.HttpRouteDescriptor{Id: "plex-disconnect", Method: "POST", Path: "/admin/plex/disconnect", Access: "admin"},
-		&pluginv1.HttpRouteDescriptor{Id: "find-server-page", Method: "GET", Path: "/admin/find-server", Access: "admin"},
-		&pluginv1.HttpRouteDescriptor{Id: "find-server-start", Method: "POST", Path: "/admin/find-server/start", Access: "admin"},
-		&pluginv1.HttpRouteDescriptor{Id: "find-server-poll", Method: "POST", Path: "/admin/find-server/poll", Access: "admin"},
-		&pluginv1.HttpRouteDescriptor{Id: "find-server-select", Method: "POST", Path: "/admin/find-server/select", Access: "admin"},
-	); err != nil {
+	if err := manifest.RegisterHTTPRoutes(m, provider.HTTPRoutes()...); err != nil {
 		return nil, err
 	}
 	return m, nil

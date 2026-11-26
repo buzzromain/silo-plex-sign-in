@@ -83,41 +83,111 @@ func (p *Provider) update(ctx context.Context, key string, fn func(current []byt
 	return nil
 }
 
-// read loads the JSON value at key into v and reports whether it was found.
-func (p *Provider) read(ctx context.Context, key string, v any) (bool, error) {
+// readRaw returns the stored bytes at key and reports whether they exist.
+func (p *Provider) readRaw(ctx context.Context, key string) ([]byte, bool, error) {
 	store := p.store()
 	if store == nil {
-		return false, errStateUnavailable
+		return nil, false, errStateUnavailable
 	}
 	data, found, err := store.ReadInstanceState(ctx, key)
 	if err != nil {
-		return false, fmt.Errorf("read %s: %w", key, err)
+		return nil, false, fmt.Errorf("read %s: %w", key, err)
 	}
 	if !found || len(data) == 0 {
-		return false, nil
+		return nil, false, nil
 	}
-	if err := json.Unmarshal(data, v); err != nil {
-		return false, fmt.Errorf("decode %s: %w", key, err)
+	return data, true, nil
+}
+
+// jsonStep rewrites a stored JSON object from one schema version to the next.
+// Step n receives a version-n object and must leave a version-(n+1) one.
+type jsonStep func(map[string]json.RawMessage) error
+
+// migrateJSON upgrades a stored record from `from` to `to`. It returns the
+// input unchanged when the versions match, and fails closed on a downgrade or
+// a missing step so an unknown schema is never read as the current one.
+func migrateJSON(raw []byte, from, to int, steps map[int]jsonStep) ([]byte, error) {
+	if from == to {
+		return raw, nil
 	}
-	return true, nil
+	if from < 0 || to < 0 {
+		return nil, fmt.Errorf("invalid state version %d -> %d", from, to)
+	}
+	if from > to {
+		return nil, fmt.Errorf("state version %d is newer than supported %d", from, to)
+	}
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &object); err != nil {
+		return nil, fmt.Errorf("decode versioned state: %w", err)
+	}
+	for version := from; version < to; version++ {
+		step := steps[version]
+		if step == nil {
+			return nil, fmt.Errorf("no migration from state version %d", version)
+		}
+		if err := step(object); err != nil {
+			return nil, fmt.Errorf("migrate state version %d: %w", version, err)
+		}
+	}
+	versionJSON, err := json.Marshal(to)
+	if err != nil {
+		return nil, err
+	}
+	object["version"] = versionJSON
+	return json.Marshal(object)
+}
+
+// settingsMigrations upgrades stored settings one schema version at a time.
+// v1 is the first schema; add a step here before changing Settings' JSON
+// shape, so an upgrade never reads old data as the current format.
+var settingsMigrations = map[int]jsonStep{}
+
+// connectionMigrations does the same for the stored Plex connection.
+var connectionMigrations = map[int]jsonStep{}
+
+// stateVersion returns the version field of a stored JSON object.
+func stateVersion(raw []byte) (int, error) {
+	var head struct {
+		Version int `json:"version"`
+	}
+	if err := json.Unmarshal(raw, &head); err != nil {
+		return 0, err
+	}
+	return head.Version, nil
+}
+
+// decodeSettings upgrades and decodes a stored settings record. Unknown or
+// newer versions fail closed instead of being read as the current format.
+func decodeSettings(raw []byte) (Settings, error) {
+	version, err := stateVersion(raw)
+	if err != nil {
+		return Settings{}, fmt.Errorf("decode settings: %w", err)
+	}
+	upgraded, err := migrateJSON(raw, version, settingsVersion, settingsMigrations)
+	if err != nil {
+		return Settings{}, fmt.Errorf("settings: %w", err)
+	}
+	var settings Settings
+	if err := json.Unmarshal(upgraded, &settings); err != nil {
+		return Settings{}, fmt.Errorf("decode settings: %w", err)
+	}
+	if settings.Version != settingsVersion {
+		return Settings{}, fmt.Errorf("unsupported settings version %d (want %d)", settings.Version, settingsVersion)
+	}
+	return settings, nil
 }
 
 // loadSettings returns the stored settings, or empty settings when nothing
-// has been saved yet. Unknown schema versions fail closed instead of being
-// interpreted as the current format.
+// has been saved yet.
 func (p *Provider) loadSettings(ctx context.Context) (Settings, error) {
-	var settings Settings
-	found, err := p.read(ctx, settingsKey, &settings)
+	raw, found, err := p.readRaw(ctx, settingsKey)
 	if err != nil {
 		return Settings{}, err
 	}
 	if !found {
 		return Settings{Version: settingsVersion}, nil
 	}
-	if settings.Version != settingsVersion {
-		return Settings{}, fmt.Errorf("unsupported settings version %d (want %d)", settings.Version, settingsVersion)
-	}
-	return settings, nil
+	return decodeSettings(raw)
 }
 
 // updateSettings applies fn to the stored settings. fn may run several
@@ -126,11 +196,9 @@ func (p *Provider) updateSettings(ctx context.Context, fn func(*Settings) error)
 	return p.update(ctx, settingsKey, func(current []byte, found bool) ([]byte, error) {
 		var settings Settings
 		if found {
-			if err := json.Unmarshal(current, &settings); err != nil {
-				return nil, fmt.Errorf("decode settings: %w", err)
-			}
-			if settings.Version != settingsVersion {
-				return nil, fmt.Errorf("unsupported settings version %d (want %d)", settings.Version, settingsVersion)
+			var err error
+			if settings, err = decodeSettings(current); err != nil {
+				return nil, err
 			}
 		}
 		if err := fn(&settings); err != nil {
@@ -153,16 +221,38 @@ type plexConnection struct {
 	UpdatedAt       string `json:"updated_at"`
 }
 
+// decodeConnection upgrades and decodes a stored Plex connection.
+func decodeConnection(raw []byte) (plexConnection, error) {
+	version, err := stateVersion(raw)
+	if err != nil {
+		return plexConnection{}, fmt.Errorf("decode connection: %w", err)
+	}
+	upgraded, err := migrateJSON(raw, version, connectionVersion, connectionMigrations)
+	if err != nil {
+		return plexConnection{}, fmt.Errorf("connection: %w", err)
+	}
+	var connection plexConnection
+	if err := json.Unmarshal(upgraded, &connection); err != nil {
+		return plexConnection{}, fmt.Errorf("decode connection: %w", err)
+	}
+	if connection.Version != connectionVersion {
+		return plexConnection{}, fmt.Errorf("unsupported connection version %d (want %d)", connection.Version, connectionVersion)
+	}
+	return connection, nil
+}
+
 // loadConnection returns the stored Plex connection, or the zero value when
 // Plex was never connected.
 func (p *Provider) loadConnection(ctx context.Context) (plexConnection, error) {
-	var connection plexConnection
-	found, err := p.read(ctx, connectionKey, &connection)
+	raw, found, err := p.readRaw(ctx, connectionKey)
 	if err != nil {
 		return plexConnection{}, err
 	}
-	if found && connection.Version != connectionVersion {
-		return plexConnection{}, fmt.Errorf("unsupported connection version %d (want %d)", connection.Version, connectionVersion)
+	var connection plexConnection
+	if found {
+		if connection, err = decodeConnection(raw); err != nil {
+			return plexConnection{}, err
+		}
 	}
 	connection.ServerMachineID = strings.TrimSpace(connection.ServerMachineID)
 	connection.ServerName = strings.TrimSpace(connection.ServerName)
@@ -181,12 +271,8 @@ func (p *Provider) saveConnection(ctx context.Context, connection plexConnection
 	}
 	return p.update(ctx, connectionKey, func(current []byte, found bool) ([]byte, error) {
 		if found {
-			var existing plexConnection
-			if err := json.Unmarshal(current, &existing); err != nil {
-				return nil, fmt.Errorf("decode connection: %w", err)
-			}
-			if existing.Version != connectionVersion {
-				return nil, fmt.Errorf("unsupported connection version %d (want %d)", existing.Version, connectionVersion)
+			if _, err := decodeConnection(current); err != nil {
+				return nil, err
 			}
 		}
 		return data, nil

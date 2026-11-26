@@ -1,20 +1,39 @@
 {{define "finder.html"}}<!doctype html>
 <html lang="{{.Lang}}">
 <head>{{template "admin_head" .}}<title>{{call .T "finder.title"}}</title></head>
-<body><main class="shell" id="finder" data-resume="{{.Resume}}" data-status="{{.Status}}" data-flow="{{.Flow}}" data-token="{{.Token}}" data-poll-token="{{.PollToken}}">
-  <header class="page-header finder-header"><a class="back-link" href="access"><span aria-hidden="true">←</span> {{call .T "finder.back"}}</a><h1>{{call .T "finder.title"}}</h1></header>
-  <section class="card">
-  {{if .Problem}}<p class="danger" role="alert">{{call .T .Problem}}</p><a class="button" href="find-server">{{call .T "signin.retry"}}</a>
-  {{else if .Ready}}<h2>{{call .T "finder.pick"}}</h2>
-    <ul class="server-list">{{range .Servers}}<li><span class="server"><img src="{{$.Assets}}plex.svg" alt="" width="20" height="20"><strong>{{or .Name (call $.T "admin.server.unnamed")}}</strong></span><form method="post" action="find-server/select"><input type="hidden" name="token" value="{{$.Token}}"><input type="hidden" name="flow" value="{{$.Flow}}"><input type="hidden" name="server_id" value="{{.ID}}"><button class="primary compact" aria-label="{{call $.T "finder.select"}} {{or .Name (call $.T "admin.server.unnamed")}}">{{call $.T "finder.select"}}</button></form></li>{{end}}</ul>{{if not .Servers}}<p class="muted">{{call .T "finder.no_servers"}}</p><a class="button" href="find-server">{{call .T "signin.retry"}}</a>{{end}}
-  {{else if .Flow}}<h2>{{call .T "finder.wait.title"}}</h2><p class="muted">{{call .T "finder.intro"}}</p>
-    <div class="actions"><a id="plex-connect" class="button primary" href="{{.Plex}}">{{call .T "finder.wait.open"}}</a></div>
-    <p class="muted small" role="status">{{call .T "finder.waiting"}}</p>
+<body>
+<main class="shell" id="finder" data-resume="{{.Resume}}" data-status="{{.Status}}" data-flow="{{.Flow}}" data-token="{{.Token}}" data-poll-token="{{.PollToken}}">
+<header class="page-header finder-header"><a class="back-link" href="access"><span aria-hidden="true">←</span> {{call .T "finder.back"}}</a>
+<h1>{{call .T "finder.title"}}</h1>
+</header>
+<section class="card">
+  {{if .Problem}}
+<p class="danger" role="alert">{{call .T .Problem}}</p>
+<a class="button" href="find-server">{{call .T "signin.retry"}}</a>
+  {{else if .Ready}}
+<h2>{{call .T "finder.pick"}}</h2>
+<ul class="server-list">{{range .Servers}}
+<li><span class="server"><img src="{{$.Assets}}plex.svg" alt="" width="20" height="20"><strong>{{or .Name (call $.T "admin.server.unnamed")}}</strong></span>
+<form method="post" action="find-server/select"><input type="hidden" name="token" value="{{$.Token}}"><input type="hidden" name="flow" value="{{$.Flow}}"><input type="hidden" name="server_id" value="{{.ID}}"><button class="primary compact" aria-label="{{call $.T "finder.select"}} {{or .Name (call $.T "admin.server.unnamed")}}">{{call $.T "finder.select"}}</button></form>
+</li>
+{{end}}</ul>
+{{if not .Servers}}
+<p class="muted">{{call .T "finder.no_servers"}}</p>
+<a class="button" href="find-server">{{call .T "signin.retry"}}</a>{{end}}
+  {{else if .Flow}}
+<h2>{{call .T "finder.wait.title"}}</h2>
+<p class="muted">{{call .T "finder.intro"}}</p>
+<div class="actions"><a id="plex-connect" class="button primary" href="{{.Plex}}">{{call .T "finder.wait.open"}}</a></div>
+<p class="muted small" role="status">{{call .T "finder.waiting"}}</p>
     <a class="button" href="{{.Resume}}">{{call .T "finder.refresh"}}</a>
-    <noscript><p class="small">{{call .T "finder.noscript"}}</p></noscript>
+    <noscript>
+<p class="small">{{call .T "finder.noscript"}}</p>
+</noscript>
   {{else}}
-    <h2>{{call .T "admin.server.connect"}}</h2><p class="muted">{{call .T "finder.intro"}}</p>
-    <form id="finder-start" method="post" action="{{.StartAction}}"><input type="hidden" name="token" value="{{.Token}}"><button class="primary">{{call .T "finder.continue"}}</button></form>
+<h2>{{call .T "admin.server.connect"}}</h2>
+<p class="muted">{{call .T "finder.intro"}}</p>
+<form id="finder-start" method="post" action="{{.StartAction}}"><input type="hidden" name="token" value="{{.Token}}"><button class="primary">{{call .T "finder.continue"}}</button></form>
   {{end}}
   </section>
-</main></body></html>{{end}}
+</main>
+</body></html>{{end}}

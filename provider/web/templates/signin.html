@@ -16,66 +16,65 @@
 <header class="brand">
   <span>{{call .T "signin.header" .Host}}</span>
 </header>
-
 <main id="signin" class="card" data-screen="{{if eq .Screen "error"}}error{{else}}{{.Screen}}{{end}}" data-auto-continue="{{.AutoContinue}}" data-plex-url="{{.PlexURL}}" data-status-url="{{.StatusURL}}" data-status-token="{{.StatusToken}}" data-flow="{{.FlowID}}" data-return-url="{{.ReturnURL}}" data-expires-at="{{.ExpiresAt}}">
-  <section id="waiting" aria-labelledby="waiting-title"{{if ne .Screen "waiting"}} hidden{{end}}>
-    <p class="provider"><img src="{{.Assets}}plex.svg" alt="" width="20" height="20"><span>Plex</span></p>
-    <h1 id="waiting-title">{{call .T "signin.wait.title"}}</h1>
-    <p class="wait-description">{{call .T "signin.wait.description"}}</p>
-    <p id="unavailable" class="notice" role="status" hidden>{{call .T "signin.wait.unavailable"}}</p>
-    <noscript><p class="notice">{{call .T "signin.noscript"}} <a class="link" href="{{.ReturnURL}}">{{call .T "signin.reload"}}</a></p></noscript>
-    <div class="waiting-status">
+<section id="waiting" aria-labelledby="waiting-title"{{if ne .Screen "waiting"}} hidden{{end}}>
+<p class="provider"><img src="{{.Assets}}plex.svg" alt="" width="20" height="20"><span>Plex</span></p>
+<h1 id="waiting-title">{{call .T "signin.wait.title"}}</h1>
+<p class="wait-description">{{call .T "signin.wait.description"}}</p>
+<p id="unavailable" class="notice" role="status" hidden>{{call .T "signin.wait.unavailable"}}</p>
+    <noscript>
+<p class="notice">{{call .T "signin.noscript"}} <a class="link" href="{{.ReturnURL}}">{{call .T "signin.reload"}}</a></p>
+</noscript>
+<div class="waiting-status">
       <span class="spinner" aria-hidden="true"></span>
       <span role="status">{{call .T "signin.wait.text"}}</span>
     </div>
-    <div class="actions">
+<div class="actions">
       <a class="button primary" href="{{.PlexURL}}">{{call .T "signin.wait.reopen"}}</a>
       <a class="link" href="/">{{call .T "signin.cancel"}}</a>
     </div>
-    <p id="countdown" class="countdown" aria-live="off"></p>
-    <p id="countdown-alert" class="visually-hidden" aria-live="polite"></p>
+<p id="countdown" class="countdown" aria-live="off"></p>
+<p id="countdown-alert" class="visually-hidden" aria-live="polite"></p>
   </section>
-
-  <section id="success" aria-labelledby="success-title"{{if ne .Screen "success"}} hidden{{end}}>
+<section id="success" aria-labelledby="success-title"{{if ne .Screen "success"}} hidden{{end}}>
     {{template "identity" .}}
-    <h1 id="success-title">{{call .T "signin.success.title"}}</h1>
-    <p role="status">{{call .T "signin.success.text"}}</p>
-    <p class="other">{{call .T "signin.not_you"}} {{template "other-account" .}}</p>
+<h1 id="success-title">{{call .T "signin.success.title"}}</h1>
+<p role="status">{{call .T "signin.success.text"}}</p>
+<p class="other">{{call .T "signin.not_you"}} {{template "other-account" .}}</p>
   </section>
-
   {{range .Errors -}}
-  <section id="error-{{.Code}}" class="error" aria-labelledby="error-{{.Code}}-title" role="alert"{{if or (ne $.Screen "error") (ne $.Code .Code)}} hidden{{end}}>
+<section id="error-{{.Code}}" class="error" aria-labelledby="error-{{.Code}}-title" role="alert"{{if or (ne $.Screen "error") (ne $.Code .Code)}} hidden{{end}}>
     <span class="error-icon" aria-hidden="true">!</span>
-    <h1 id="error-{{.Code}}-title">{{call $.T (print "error." .Code ".title")}}</h1>
-    <p>{{call $.T (print "error." .Code ".text")}}</p>
+<h1 id="error-{{.Code}}-title">{{call $.T (print "error." .Code ".title")}}</h1>
+<p>{{call $.T (print "error." .Code ".text")}}</p>
     {{if or (eq .Code "not_allowed") (eq .Code "ineligible")}}{{template "identity" $}}{{end}}
-    <div class="actions">
+<div class="actions">
       <a class="button primary" href="/">{{call $.T .Primary}}</a>
       {{- if .Secondary}}
       <a class="button secondary" href="/">{{call $.T .Secondary}}</a>
       {{- end}}
       {{- if .OtherAccount}}
-      <p class="other">{{call $.T "signin.other_account.question"}} {{template "other-account" $}}<span class="hint">{{call $.T "signin.other_account.hint"}}</span></p>
+<p class="other">{{call $.T "signin.other_account.question"}} {{template "other-account" $}}<span class="hint">{{call $.T "signin.other_account.hint"}}</span></p>
       {{- end}}
     </div>
-    <div class="support-reference" data-reference="{{formatRef $.Ref}}"{{if not $.Ref}} hidden{{end}}>
-      {{if eq .Code "not_allowed"}}<p>{{call $.T "signin.ref.hint"}}</p>{{end}}
-      <p data-ref-value>{{call $.T "signin.ref" (formatRef $.Ref)}}</p>
+<div class="support-reference" data-reference="{{formatRef $.Ref}}"{{if not $.Ref}} hidden{{end}}>
+      {{if eq .Code "not_allowed"}}
+<p>{{call $.T "signin.ref.hint"}}</p>
+{{end}}
+<p data-ref-value>{{call $.T "signin.ref" (formatRef $.Ref)}}</p>
       <button type="button" class="link copy" data-copy hidden>{{call $.T "signin.copy"}}</button>
     </div>
   </section>
   {{end}}
 </main>
-
 <footer>
-  <p>{{call .T "signin.trust"}}</p>
-  <p class="product">Plex Sign-In</p>
+<p>{{call .T "signin.trust"}}</p>
+<p class="product">Plex Sign-In</p>
 </footer>
 <script type="application/json" id="i18n">{{.Script}}</script>
 </body>
 </html>
 {{- end}}
-
 {{define "identity" -}}
 {{$a := .Account -}}
 <div class="identity" data-identity{{if not $a}} hidden{{end}}>
@@ -87,7 +86,6 @@
   </span>
 </div>
 {{- end}}
-
 {{define "other-account" -}}
 <a class="link" href="https://app.plex.tv/desktop/#!/" target="_blank" rel="noopener noreferrer" data-other-account>{{call .T "signin.other_account"}}</a>
 {{- end}}

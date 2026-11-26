@@ -1,24 +1,27 @@
 {{define "admin_access"}}
 {{$finder := "find-server"}}{{$disconnect := "plex/disconnect"}}{{$base := "access"}}{{if .FromPost}}{{$disconnect = "../plex/disconnect"}}{{$base = "../access"}}{{end}}
 <section class="card" aria-labelledby="access-title">
-  <h2 id="access-title">{{call .T "admin.access.title"}}</h2>
-  <p class="muted">{{call .T "admin.access.text"}}</p>
-  <div class="source">
-    <h3>{{call .T "admin.access.plex"}}</h3>
+<h2 id="access-title">{{call .T "admin.access.title"}}</h2>
+<p class="muted">{{call .T "admin.access.text"}}</p>
+<div class="source">
+<h3>{{call .T "admin.access.plex"}}</h3>
     {{if .Connected}}
     {{$name := or .ServerName (call .T "admin.server.unnamed")}}
-    <div class="server-row"><p class="server"><img src="{{.Assets}}plex.svg" alt="" width="20" height="20"><span><strong title="{{.ServerID}}">{{$name}}</strong>{{if not .ServerName}}<code class="muted small">{{shortID .ServerID}}</code>{{end}}{{with .Checked}}<span class="muted">{{call $.T "admin.server.checked" .}}</span>{{end}}</span></p>
-    <div class="actions"><a class="button" href="{{$finder}}">{{call .T "admin.server.change"}}</a>
-    <form method="post" action="{{$disconnect}}" data-confirm="{{call .T "admin.server.disconnect.confirm" $name}}"><input type="hidden" name="token" value="{{.Token}}"><button class="danger">{{call .T "admin.server.disconnect"}}</button></form></div></div>
-    <p class="muted small">{{call .T "admin.access.plex.connected"}}</p>
+<div class="server-row">
+<p class="server"><img src="{{.Assets}}plex.svg" alt="" width="20" height="20"><span><strong title="{{.ServerID}}">{{$name}}</strong>{{if not .ServerName}}<code class="muted small">{{shortID .ServerID}}</code>{{end}}{{with .Checked}}<span class="muted">{{call $.T "admin.server.checked" .}}</span>{{end}}</span></p>
+<div class="actions"><a class="button" href="{{$finder}}">{{call .T "admin.server.change"}}</a>
+<form method="post" action="{{$disconnect}}" data-confirm="{{call .T "admin.server.disconnect.confirm" $name}}"><input type="hidden" name="token" value="{{.Token}}"><button class="danger">{{call .T "admin.server.disconnect"}}</button></form>
+</div>
+</div>
+<p class="muted small">{{call .T "admin.access.plex.connected"}}</p>
     {{else}}
-    <p>{{call .T "admin.access.plex.none"}}</p>
+<p>{{call .T "admin.access.plex.none"}}</p>
     <a class="button primary" href="{{$finder}}">{{call .T "admin.server.connect"}}</a>
     {{end}}
   </div>
-  <div class="source">
-    <h3>{{call .T "admin.access.manual"}}</h3>
-    <p>{{if .ManualCount}}{{call .T "admin.access.manual.text" .ManualCount}}{{else}}{{call .T "admin.access.manual.empty"}}{{end}}</p>
+<div class="source">
+<h3>{{call .T "admin.access.manual"}}</h3>
+<p>{{if .ManualCount}}{{call .T "admin.access.manual.text" .ManualCount}}{{else}}{{call .T "admin.access.manual.empty"}}{{end}}</p>
     <a class="button" href="{{$base}}?tab=people">{{call .T "admin.access.manage"}}</a>
   </div>
 </section>

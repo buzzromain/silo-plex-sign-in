@@ -111,3 +111,17 @@ func TestActivityRetentionDropsOldDecisions(t *testing.T) {
 		t.Fatalf("expired decisions must not be stored again: %+v", pushed)
 	}
 }
+
+func TestActivityDocumentVersion(t *testing.T) {
+	legacy := []byte(`[{"ref":"OLD111","at":"2026-01-01T00:00:00Z","outcome":"refused","reason":"not_allowed"}]`)
+	if entries, err := decodeActivity(legacy); err != nil || len(entries) != 1 || entries[0].Ref != "OLD111" {
+		t.Fatalf("legacy array must still decode: %+v %v", entries, err)
+	}
+	document := []byte(`{"version":1,"entries":[{"ref":"NEW222","at":"2026-01-01T00:00:00Z"}]}`)
+	if entries, err := decodeActivity(document); err != nil || len(entries) != 1 || entries[0].Ref != "NEW222" {
+		t.Fatalf("versioned document must decode: %+v %v", entries, err)
+	}
+	if _, err := decodeActivity([]byte(`{"version":2,"entries":[]}`)); err == nil {
+		t.Fatal("a newer activity version must fail closed")
+	}
+}
