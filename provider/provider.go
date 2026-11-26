@@ -125,7 +125,7 @@ func (p *Provider) InitAuthorize(ctx context.Context, req *pluginv1.InitAuthoriz
 	}
 	p.mu.Lock()
 	p.pruneFlowsLocked(time.Now())
-	full := len(p.flows)+p.pendingCreates >= maxFlows
+	full := p.flowLimitReachedLocked()
 	if !full {
 		p.pendingCreates++ // reserve capacity before the network call
 	}
@@ -466,4 +466,12 @@ func (p *Provider) pruneFlowsLocked(now time.Time) {
 			delete(p.flows, id)
 		}
 	}
+}
+
+// flowLimitReachedLocked reports whether another Plex flow would exceed
+// maxFlows. Sign-in and administrator connect flows share the budget, and
+// pendingCreates reserves slots for calls already talking to Plex. p.mu must
+// be held.
+func (p *Provider) flowLimitReachedLocked() bool {
+	return len(p.flows)+len(p.finders)+p.pendingCreates >= maxFlows
 }

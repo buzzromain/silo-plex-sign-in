@@ -59,11 +59,15 @@ func TestWritePreviews(t *testing.T) {
 			write(filepath.Join("signin", string(lang)+"-"+name+".html"), renderPage(http.StatusOK, "signin.html", page).GetBody())
 		}
 		p := New()
-		store := withAccess(t, p, Settings{Manual: []ManualEntry{{Input: "claire.l", UUID: "fixture-claire", Title: "Claire L.", Username: "claire.l"}, {Input: "sam"}}}, "")
+		store := withAccess(t, p, Settings{Manual: []ManualEntry{
+			{Input: "claire.l", UUID: "fixture-claire", Title: "Claire L.", Username: "claire.l", Email: "claire.l@example.test"},
+			{Input: "sam"},
+		}}, "")
 		now := time.Now().UTC()
 		store.put(t, connectionKey, plexConnection{Version: connectionVersion, ServerMachineID: "a1b2c3d4e5f6f9", ServerName: "Home Cinema", UpdatedAt: now.Add(-30 * time.Minute).Format(time.RFC3339)})
 		store.put(t, activityKey, []ActivityEntry{
 			{Ref: "7KQ4M2", At: now.Add(-10 * time.Minute), Outcome: outcomeRefuse, Reason: ReasonNotAllowed, Username: "camille", Title: "Camille P.", UUID: "fixture-camille"},
+			{Ref: "Z2W4N6", At: now.Add(-20 * time.Minute), Outcome: outcomeRefuse, Reason: ReasonNotAllowed, Username: "claire.l", Title: "Claire L.", UUID: "fixture-claire"},
 			{Ref: "A6Y4W3", At: now.Add(-time.Hour), Outcome: outcomeAllow, Rule: RuleManual, Username: "claire.l", Title: "Claire L.", UUID: "fixture-claire"},
 			{Ref: "Q8M3T5", At: now.Add(-26 * time.Hour), Outcome: outcomeRefuse, Reason: ReasonExpired},
 		})

@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	pluginv1 "github.com/Silo-Server/silo-plugin-sdk/pkg/pluginproto/silo/plugin/v1"
 )
@@ -106,6 +108,34 @@ func TestFinderPageIsSideEffectFreeAndRoutesRequireAdmin(t *testing.T) {
 	}
 	if pinCalls != 0 || len(p.finders) != 0 {
 		t.Fatal("GET finder page must be side-effect free; expected no PIN or pending flow")
+	}
+}
+
+func TestFinderRefusesBeyondTheFlowLimit(t *testing.T) {
+	pinCalls := 0
+	plex := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v2/pins" {
+			pinCalls++
+			_, _ = w.Write([]byte(`{"id":3,"code":"FINDCODE"}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(plex.Close)
+	p := testProvider(plex)
+	p.mu.Lock()
+	p.finders = make(map[string]*finderFlow)
+	for i := 0; i < maxFlows; i++ {
+		p.finders[strconv.Itoa(i)] = &finderFlow{expiresAt: time.Now().Add(time.Minute)}
+	}
+	p.mu.Unlock()
+
+	resp := finderPost(t, p, finderStartPath, adminHeaders("1"), nil)
+	if resp.GetStatusCode() != http.StatusSeeOther || !strings.Contains(resp.GetHeaders()["Location"], "notice=busy") {
+		t.Fatalf("connect flow accepted beyond the limit: %d %q", resp.GetStatusCode(), resp.GetHeaders()["Location"])
+	}
+	if pinCalls != 0 {
+		t.Fatal("no Plex PIN must be requested once the flow budget is full")
 	}
 }
 

@@ -137,7 +137,7 @@ func (p *Provider) finderCreate(ctx context.Context, viewer httproute.Viewer, re
 	}
 	p.mu.Lock()
 	p.pruneFlowsLocked(time.Now())
-	full := len(p.flows)+p.pendingCreates >= maxFlows
+	full := p.flowLimitReachedLocked()
 	if !full {
 		p.pendingCreates++
 	}
