@@ -74,7 +74,8 @@ three tabs.
   includes eligible Plex Home members and people invited to shares on any
   server owned by the connected account. People shared on another server are
   not automatically allowed by the selected-server rule. You can add them to
-  the manual list. Each person's Plex ID appears after their first sign-in.
+  the manual list. Each person's Plex ID and email appear after their first
+  sign-in; a changed email is refreshed on later sign-ins.
 - **Activity**: the latest 100 sign-in decisions, allowed or denied. A denied
   person can be added to the manual list from here with **Allow sign-in**,
   without changing Plex sharing. Once the person is on the manual list, the
@@ -157,8 +158,9 @@ directly.
   protecting its instance state.
 - **Activity log:** stores the newest 100 sign-in attempts, not a fixed number
   of days. New attempts evict older entries. It records the Plex account ID and
-  limited display fields, plus non-reversible keys used to match an attempt
-  with the manual list; untrusted failures are capped separately.
+  limited display fields, plus opaque lookup keys used to match an attempt
+  with the manual list (a matching aid, not anonymisation); untrusted failures
+  are capped separately.
 - **Owner token:** used to read server-access information. **Disconnect**
   forgets it in the plugin; signing out of Silo does not revoke Plex tokens.
 - **Pending sign-ins** are kept in memory for up to 10 minutes. After Plex

@@ -128,7 +128,8 @@ func (p *Provider) fetchUser(ctx context.Context, token string) (*plexUser, erro
 
 // checkEndpoint asks plex.tv for its resource list as the Silo connection
 // test. It sends no token, so Plex answers 401; that still proves the service
-// is reachable.
+// is reachable. It probes the route discovery depends on on purpose, so a
+// moved or removed endpoint fails the test instead of passing it.
 func (p *Provider) checkEndpoint(ctx context.Context) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.endpoint("/api/v2/resources?includeHttps=1"), nil)
 	if err != nil {

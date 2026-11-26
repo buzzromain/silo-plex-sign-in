@@ -531,7 +531,7 @@ func isAccessRefusal(e ActivityEntry) bool {
 // manualCovers reports whether a manual entry now grants access to the account
 // behind a decision. Entries bound to a Plex account match by account ID only;
 // entries still waiting for their first sign-in match by username or by the
-// confirmed email, through the non-reversible keys stored with the decision.
+// confirmed email, through the opaque lookup keys stored with the decision.
 func manualCovers(e ActivityEntry, s Settings) bool {
 	for _, entry := range s.Manual {
 		if entry.UUID != "" {

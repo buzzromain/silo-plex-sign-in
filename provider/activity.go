@@ -25,8 +25,10 @@ const (
 )
 
 // ActivityEntry is one final sign-in decision. It never holds a token, PIN
-// code, claim, email or IP address: the username and email are reduced to
-// non-reversible keys used to match the attempt with the manual list.
+// code, claim, email or IP address: the username and confirmed email are
+// reduced to opaque lookup keys used to match the attempt with the manual
+// list. A key is a matching aid, not anonymisation: a short address stays
+// guessable by dictionary.
 type ActivityEntry struct {
 	Ref      string     `json:"ref"`
 	At       time.Time  `json:"at"`
@@ -76,9 +78,9 @@ func newActivity(ref string, decision Decision, user plexUser) ActivityEntry {
 	return entry
 }
 
-// decisionKey is a stable, non-reversible key for a Plex username. The
-// activity log keeps it so an administrator's later manual entry can be
-// matched to a decision without storing the name itself.
+// decisionKey is a stable lookup key for a Plex username. The activity log
+// keeps it so an administrator's later manual entry can be matched to a
+// decision without storing the name itself.
 func decisionKey(value string) string {
 	return hashKey(strings.ToLower(normalizeInput(value)))
 }
