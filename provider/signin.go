@@ -102,6 +102,11 @@ func (p *Provider) signinFailure(ctx context.Context, code ReasonCode, user plex
 func (p *Provider) status(ctx context.Context, flowID, claim string) *pluginv1.HandleHTTPResponse {
 	flow, reason, code := p.lookupFlow(flowID, claim)
 	if reason != ReasonNone {
+		if code == http.StatusNotFound {
+			// Unknown IDs are arbitrary client input, not sign-in attempts. Avoid
+			// turning them into unbounded writes to Silo instance state.
+			return statusJSON(code, statusResponse{Status: statusFailed, Code: reason})
+		}
 		return statusJSON(code, p.signinFailure(ctx, reason, flow.user))
 	}
 	if flow.complete || flow.failed != ReasonNone {
@@ -158,7 +163,7 @@ func (p *Provider) status(ctx context.Context, flowID, claim string) *pluginv1.H
 			return unavailable(statusChecking)
 		}
 	}
-	decision := Decide(settings, connection.ServerMachineID, connection.OwnerUUID, *user, resources)
+	decision := Decide(settings, connection.ServerMachineID, connection.OwnerUUID, connection.OwnerID, *user, resources)
 	if decision.Allowed && decision.Rule == RuleManual {
 		p.learnManual(decideCtx, *user)
 	}
@@ -299,6 +304,7 @@ func (p *Provider) startPage(ctx context.Context, req *pluginv1.HandleHTTPReques
 	flow := p.flows[flowID]
 	if flow == nil || time.Now().After(flow.expiresAt) {
 		var expired pendingFlow
+		unknown := flow == nil
 		if flow != nil {
 			expired.contentBase = flow.contentBase
 			if validClaim(flow, claim) {
@@ -306,6 +312,11 @@ func (p *Provider) startPage(ctx context.Context, req *pluginv1.HandleHTTPReques
 			}
 		}
 		p.mu.Unlock()
+		if unknown {
+			page := newSigninPage(lang)
+			page.Screen, page.Code = "error", ReasonExpired
+			return renderPage(http.StatusGone, "signin.html", page)
+		}
 		return p.errorPage(ctx, lang, http.StatusGone, ReasonExpired, expired)
 	}
 	secret, returning := claim, false

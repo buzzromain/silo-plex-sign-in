@@ -35,6 +35,7 @@ type finderFlow struct {
 	expiresAt time.Time
 	token     string
 	ownerUUID string
+	ownerID   int64
 	servers   []foundServer
 	complete  bool
 	failed    bool
@@ -217,8 +218,8 @@ func (p *Provider) finderPoll(ctx context.Context, viewer httproute.Viewer, req 
 	}
 	owner, err := p.fetchUser(ctx, pin.AuthToken)
 	var resources []plexResource
-	if err == nil && owner.UUID == "" {
-		err = errors.New("Plex account has no UUID")
+	if err == nil && (owner.UUID == "" || owner.ID < 1) {
+		err = errors.New("Plex account has no stable ID")
 	}
 	if err == nil {
 		resources, err = p.fetchResources(ctx, pin.AuthToken)
@@ -240,6 +241,7 @@ func (p *Provider) finderPoll(ctx context.Context, viewer httproute.Viewer, req 
 	if current := p.finders[flowID]; current != nil {
 		current.token = pin.AuthToken
 		current.ownerUUID = owner.UUID
+		current.ownerID = owner.ID
 		current.servers = servers
 		current.complete = true
 	}
@@ -277,6 +279,7 @@ func (p *Provider) finderSelect(ctx context.Context, viewer httproute.Viewer, re
 		ServerMachineID: selected.ID,
 		ServerName:      selected.Name,
 		OwnerUUID:       flow.ownerUUID,
+		OwnerID:         flow.ownerID,
 		OwnerToken:      flow.token,
 	}); err != nil {
 		return accessRedirect("access", "error_state")

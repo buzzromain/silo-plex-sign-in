@@ -184,7 +184,9 @@ func (p *Provider) fetchResources(ctx context.Context, token string) ([]plexReso
 			best = resources
 		}
 	}
-	if answered {
+	// A successful empty answer is not definitive if another configured host
+	// failed: that host may be the only one with current resource data.
+	if answered && lastErr == nil {
 		return best, nil
 	}
 	return nil, lastErr

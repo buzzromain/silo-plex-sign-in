@@ -35,12 +35,12 @@ func finderPlex(t *testing.T, approved *bool) *httptest.Server {
 				_, _ = w.Write([]byte(`{"id":3,"code":"FINDCODE","authToken":""}`))
 			}
 		case "/api/v2/user":
-			_, _ = w.Write([]byte(`{"uuid":"owner-uuid-1","username":"owner"}`))
+			_, _ = w.Write([]byte(`{"id":1,"uuid":"owner-uuid-1","username":"owner"}`))
 		case "/api/v2/resources":
 			_, _ = w.Write([]byte(`[
 				{"name":"Friend's box","clientIdentifier":"friend-id-0001","provides":"server","owned":false},
 				{"name":"Living room TV","clientIdentifier":"tv-id-0001","provides":"player,client","owned":false},
-				{"name":"Home server","clientIdentifier":"home-id-0001","provides":"server","owned":true}]`))
+				{"name":"Home server","clientIdentifier":"home-id-0001","provides":"server","ownerId":1,"owned":true}]`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -215,7 +215,7 @@ func TestFinderSelectStoresServerConnectionWithoutLeakingTheToken(t *testing.T) 
 	if err != nil {
 		t.Fatalf("connection not stored: %v", err)
 	}
-	if connection.ServerMachineID != "home-id-0001" || connection.ServerName != "Home server" || connection.OwnerToken != "secret-plex-token" || connection.OwnerUUID != "owner-uuid-1" {
+	if connection.ServerMachineID != "home-id-0001" || connection.ServerName != "Home server" || connection.OwnerToken != "secret-plex-token" || connection.OwnerUUID != "owner-uuid-1" || connection.OwnerID != 1 {
 		t.Fatalf("unexpected connection: %+v", connection)
 	}
 	p.mu.Lock()

@@ -53,7 +53,7 @@ func TestExpiredFlowDropsPlexToken(t *testing.T) {
 	}
 }
 
-func TestResponsesDenyFraming(t *testing.T) {
+func TestPluginResponsesSetFramingHeaders(t *testing.T) {
 	if got := httpResponse(200, contentTypeText, "").Headers["X-Frame-Options"]; got != "DENY" {
 		t.Fatalf("X-Frame-Options = %q", got)
 	}

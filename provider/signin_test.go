@@ -57,7 +57,7 @@ func (f *fakePlex) server(t *testing.T) *httptest.Server {
 	return s
 }
 
-const fullUser = `{"uuid":"u-1","username":"alex","title":"Alex M.","email":"alex@example.test","confirmed":true,"thumb":"https://plex.tv/users/abc123/avatar"}`
+const fullUser = `{"id":42,"uuid":"u-1","username":"alex","title":"Alex M.","email":"alex@example.test","confirmed":true,"thumb":"https://plex.tv/users/abc123/avatar"}`
 
 // openFlow runs InitAuthorize and opens the start page; it returns the
 // flow id and claim.
@@ -100,7 +100,7 @@ func assertNoSecrets(t *testing.T, raw, claim string) {
 }
 
 func TestStatusStates(t *testing.T) {
-	plex := &fakePlex{userJSON: fullUser, resources: `[{"clientIdentifier":"srv","provides":"server"}]`}
+	plex := &fakePlex{userJSON: fullUser, resources: `[{"clientIdentifier":"srv","provides":"server","ownerId":1}]`}
 	tests := []struct {
 		name     string
 		settings Settings
@@ -187,6 +187,9 @@ func TestStatusUnknownExpiredAndClaimed(t *testing.T) {
 	if code, body, _ := poll(t, p, "nope", claim); code != http.StatusNotFound || body.Status != statusFailed || body.Code != ReasonExpired {
 		t.Fatalf("unknown flow: %d %+v", code, body)
 	}
+	if _, found := p.state.(*fakeStore).values[activityKey]; found {
+		t.Fatal("unknown flow IDs must not write activity state")
+	}
 	if code, body, _ := poll(t, p, flowID, "wrong"); code != http.StatusForbidden || body.Code != ReasonClaimed {
 		t.Fatalf("wrong claim: %d %+v", code, body)
 	}
@@ -215,13 +218,13 @@ func TestRefusedFlowCannotBeExchanged(t *testing.T) {
 	}
 }
 
-func TestFlowErrorsHaveActivityReferences(t *testing.T) {
+func TestUnknownFlowDoesNotCreateActivityEntry(t *testing.T) {
 	p := testProvider((&fakePlex{userJSON: fullUser}).server(t))
 	flowID, _ := openFlow(t, p)
 	_, wrong, _ := poll(t, p, flowID, "wrong")
 	_, expired, _ := poll(t, p, "unknown", "unknown")
 	activity, err := p.loadActivity(context.Background())
-	if err != nil || len(activity) != 2 || wrong.Ref == "" || expired.Ref == "" || activity[0].Ref != expired.Ref || activity[1].Ref != wrong.Ref || wrong.Account != nil || expired.Account != nil {
-		t.Fatalf("flow failures do not link to activity: %v %#v", err, activity)
+	if err != nil || len(activity) != 1 || wrong.Ref == "" || expired.Ref != "" || activity[0].Ref != wrong.Ref || wrong.Account != nil || expired.Account != nil {
+		t.Fatalf("unknown flow created an activity entry or known failure was lost: %v %#v", err, activity)
 	}
 }

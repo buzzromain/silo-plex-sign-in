@@ -143,7 +143,14 @@ func migrateJSON(raw []byte, from, to int, steps map[int]jsonStep) ([]byte, erro
 var settingsMigrations = map[int]jsonStep{}
 
 // connectionMigrations does the same for the stored Plex connection.
-var connectionMigrations = map[int]jsonStep{}
+var connectionMigrations = map[int]jsonStep{
+	1: func(object map[string]json.RawMessage) error {
+		// v2 records the numeric Plex account ID of the selected server owner.
+		// Older connections remain readable; shared users are denied until the
+		// administrator reconnects Plex and records this identity.
+		return nil
+	},
+}
 
 // stateVersion returns the version field of a stored JSON object.
 func stateVersion(raw []byte) (int, error) {
@@ -217,6 +224,7 @@ type plexConnection struct {
 	ServerMachineID string `json:"server_machine_id"`
 	ServerName      string `json:"server_name"`
 	OwnerUUID       string `json:"owner_uuid"`
+	OwnerID         int64  `json:"owner_id,omitempty"`
 	OwnerToken      string `json:"owner_token"`
 	UpdatedAt       string `json:"updated_at"`
 }

@@ -41,7 +41,7 @@ const (
 	maxManualEntries  = 200
 	maxEntryLength    = 200
 	settingsVersion   = 1
-	connectionVersion = 1
+	connectionVersion = 2
 )
 
 // Settings is everything the administrator chose. The Plex server identity
@@ -75,16 +75,16 @@ type Decision struct {
 // Decide says whether a Plex account may sign in. It never calls Plex:
 // resources are the account's own Plex resources, fetched by the caller when
 // a server is connected. serverID is the selected server's machine
-// identifier and ownerUUID the Plex account that selected it. A server's
-// people and the manual list are independent sources: matching either one
-// allows the account.
-func Decide(settings Settings, serverID, ownerUUID string, user plexUser, resources []plexResource) Decision {
+// identifier, ownerUUID, and ownerID identify the server selected by the
+// administrator. A server's people and the manual list are independent
+// sources: matching either one allows the account.
+func Decide(settings Settings, serverID, ownerUUID string, ownerID int64, user plexUser, resources []plexResource) Decision {
 	switch {
 	case serverID == "" && len(settings.Manual) == 0:
 		return Decision{Reason: ReasonNotConfigured}
 	case user.UUID == "", user.Restricted, user.Guest:
 		return Decision{Reason: ReasonIneligible}
-	case hasServer(resources, serverID, ownerUUID, user):
+	case hasServer(resources, serverID, ownerUUID, ownerID, user):
 		return Decision{Allowed: true, Rule: RuleServer}
 	case matchManual(settings.Manual, user) >= 0:
 		return Decision{Allowed: true, Rule: RuleManual}
@@ -96,7 +96,7 @@ func Decide(settings Settings, serverID, ownerUUID string, user plexUser, resour
 // Anyone can run a server and give it any identifier, so a server the signed-in
 // account itself owns counts only when that account is the connected owner.
 // Everyone else must see it as a server shared with them (owned is false).
-func hasServer(resources []plexResource, serverID, ownerUUID string, user plexUser) bool {
+func hasServer(resources []plexResource, serverID, ownerUUID string, ownerID int64, user plexUser) bool {
 	if serverID == "" {
 		return false
 	}
@@ -105,10 +105,22 @@ func hasServer(resources []plexResource, serverID, ownerUUID string, user plexUs
 		if resource.ClientIdentifier != serverID || !isServerResource(resource) {
 			continue
 		}
-		if ownsResource(resource, user.ID) && !isOwner {
+		// A shared resource must identify the configured server owner. This
+		// prevents a different account's registration with the same machine ID
+		// from satisfying the rule. Older records without ownerID can still
+		// authorize the connected owner, but cannot authorize shared users.
+		if resource.OwnerID != 0 {
+			if ownerID != 0 && resource.OwnerID == ownerID {
+				return true
+			}
+			if isOwner && resource.OwnerID == user.ID {
+				return true
+			}
 			continue
 		}
-		return true
+		if isOwner && resource.Owned {
+			return true
+		}
 	}
 	return false
 }

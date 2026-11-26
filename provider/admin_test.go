@@ -386,10 +386,10 @@ func TestDisconnectKeepsManualAccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := Decide(settings, connection.ServerMachineID, connection.OwnerUUID, plexUser{UUID: "u-1", Username: "alex"}, nil); !got.Allowed || got.Rule != RuleManual {
+	if got := Decide(settings, connection.ServerMachineID, connection.OwnerUUID, connection.OwnerID, plexUser{UUID: "u-1", Username: "alex"}, nil); !got.Allowed || got.Rule != RuleManual {
 		t.Fatalf("manual source must survive disconnect: %+v", got)
 	}
-	if got := Decide(settings, connection.ServerMachineID, connection.OwnerUUID, plexUser{UUID: "u-2", Username: "friend"}, nil); got.Allowed {
+	if got := Decide(settings, connection.ServerMachineID, connection.OwnerUUID, connection.OwnerID, plexUser{UUID: "u-2", Username: "friend"}, nil); got.Allowed {
 		t.Fatal("server users must stop being allowed after disconnect")
 	}
 }

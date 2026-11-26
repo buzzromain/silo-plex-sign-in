@@ -45,7 +45,7 @@ func refreshState(t *testing.T, token string) *pluginv1.CheckAccountRequest {
 
 func TestCheckAccountRevokesOnlyOnDefinitiveAnswer(t *testing.T) {
 	var userStatus, resStatus atomic.Int32
-	plex := plexAccountServer(t, `{"uuid":"u-1","username":"alex"}`, `[{"clientIdentifier":"srv","provides":"server"}]`, &userStatus, &resStatus)
+	plex := plexAccountServer(t, `{"uuid":"u-1","username":"alex"}`, `[{"clientIdentifier":"srv","provides":"server","ownerId":1}]`, &userStatus, &resStatus)
 	defer plex.Close()
 	p := testProvider(plex)
 	withAccess(t, p, Settings{}, "srv")
@@ -190,13 +190,13 @@ func TestSignInRefusesAccountWithoutServerAccess(t *testing.T) {
 
 func TestDecide(t *testing.T) {
 	yes, no := true, false
-	server := []plexResource{{ClientIdentifier: "srv", Provides: "server"}}
+	server := []plexResource{{ClientIdentifier: "srv", Provides: "server", OwnerID: 1}}
 	other := []plexResource{{ClientIdentifier: "other", Provides: "server"}}
 	player := []plexResource{{ClientIdentifier: "srv", Provides: "player,client"}}
 	// A server the account owns with the selected ID: only the connected
 	// owner may use it, anyone else could have set that identifier.
 	ownedCopy := []plexResource{{ClientIdentifier: "srv", Provides: "server", Owned: true}}
-	owner := plexUser{UUID: "owner-uuid", Username: "owner"}
+	owner := plexUser{ID: 1, UUID: "owner-uuid", Username: "owner"}
 	alex := plexUser{UUID: "u-1", Username: "Alex", Email: "alex@example.test", Confirmed: &yes}
 	unconfirmed := plexUser{UUID: "u-1", Username: "Alex", Email: "alex@example.test", Confirmed: &no}
 	byName := []ManualEntry{{Input: "alex"}}
@@ -244,13 +244,13 @@ func TestDecide(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Decide(Settings{Manual: tt.manual}, tt.serverID, "owner-uuid", tt.user, tt.resources)
+			got := Decide(Settings{Manual: tt.manual}, tt.serverID, "owner-uuid", 1, tt.user, tt.resources)
 			if got != tt.want {
 				t.Fatalf("got %+v, want %+v", got, tt.want)
 			}
 		})
 	}
-	if got := Decide(Settings{}, "", "", alex, []plexResource{{ClientIdentifier: "", Provides: "server"}}); got.Allowed {
+	if got := Decide(Settings{}, "", "", 0, alex, []plexResource{{ClientIdentifier: "", Provides: "server"}}); got.Allowed {
 		t.Fatal("no selected server must allow nobody through the server rule")
 	}
 }
@@ -337,7 +337,7 @@ func TestSettingsAddRemoveAndLearn(t *testing.T) {
 		t.Fatal("a missing email must not erase the stored address")
 	}
 	renamed := plexUser{UUID: "u-7", Username: "alex"}
-	if Decide(Settings{Manual: learner.Manual}, "", "", renamed, nil).Allowed {
+	if Decide(Settings{Manual: learner.Manual}, "", "", 0, renamed, nil).Allowed {
 		t.Fatal("after learning, the username no longer matches another account")
 	}
 }
@@ -346,13 +346,20 @@ func TestServerOwnershipFallsBackToPlexAccountID(t *testing.T) {
 	// The account signed in owns the server that carries the selected
 	// identifier, but it is not the account the administrator connected.
 	own := []plexResource{{ClientIdentifier: "srv", Provides: "server", OwnerID: 7}}
-	if got := Decide(Settings{}, "srv", "owner-uuid", plexUser{UUID: "u-b", ID: 7}, own); got.Allowed {
+	if got := Decide(Settings{}, "srv", "owner-uuid", 1, plexUser{UUID: "u-b", ID: 7}, own); got.Allowed {
 		t.Fatalf("another account's own server must not count: %+v", got)
 	}
 	// A server owned by the connected owner is shared with everyone else.
 	shared := []plexResource{{ClientIdentifier: "srv", Provides: "server", OwnerID: 1}}
-	if got := Decide(Settings{}, "srv", "owner-uuid", plexUser{UUID: "u-c", ID: 8}, shared); !got.Allowed {
+	if got := Decide(Settings{}, "srv", "owner-uuid", 1, plexUser{UUID: "u-c", ID: 8}, shared); !got.Allowed {
 		t.Fatalf("a server shared by the connected owner must count: %+v", got)
+	}
+	if got := Decide(Settings{}, "srv", "owner-uuid", 0, plexUser{UUID: "u-c", ID: 8}, shared); got.Allowed {
+		t.Fatalf("shared access must fail closed when a legacy connection has no owner ID: %+v", got)
+	}
+	spoofed := []plexResource{{ClientIdentifier: "srv", Provides: "server", OwnerID: 99}}
+	if got := Decide(Settings{}, "srv", "owner-uuid", 1, plexUser{UUID: "u-c", ID: 8}, spoofed); got.Allowed {
+		t.Fatalf("same machine identifier owned by another Plex account must not count: %+v", got)
 	}
 }
 
@@ -381,7 +388,7 @@ func TestReadiness(t *testing.T) {
 
 func TestCheckAccountRevocation(t *testing.T) {
 	var userStatus, resStatus atomic.Int32
-	plex := plexAccountServer(t, `{"uuid":"u-1","username":"alex"}`, `[{"clientIdentifier":"srv","provides":"server"}]`, &userStatus, &resStatus)
+	plex := plexAccountServer(t, `{"uuid":"u-1","username":"alex"}`, `[{"clientIdentifier":"srv","provides":"server","ownerId":1}]`, &userStatus, &resStatus)
 	defer plex.Close()
 	p := testProvider(plex)
 	check := func() pluginv1.CheckAccountStatus {

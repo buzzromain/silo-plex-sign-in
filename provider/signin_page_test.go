@@ -127,9 +127,17 @@ func TestStartPageErrorsAreStyledHTML(t *testing.T) {
 	}
 	assertCleanHTML(t, body)
 
+	beforeUnknown, err := p.loadActivity(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
 	unknown := startPageRequest(t, p, "no-such-flow", "", "")
 	if unknown.GetStatusCode() != http.StatusGone || !strings.Contains(string(unknown.GetBody()), "This sign-in has expired") {
 		t.Fatalf("unknown flow = %d\n%s", unknown.GetStatusCode(), unknown.GetBody())
+	}
+	afterUnknown, err := p.loadActivity(context.Background())
+	if err != nil || len(afterUnknown) != len(beforeUnknown) {
+		t.Fatalf("unknown start flow wrote activity: before=%d after=%d err=%v", len(beforeUnknown), len(afterUnknown), err)
 	}
 
 	p.mu.Lock()

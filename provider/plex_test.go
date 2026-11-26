@@ -157,6 +157,25 @@ func TestFetchResourcesFallsBackToSecondHost(t *testing.T) {
 	}
 }
 
+func TestFetchResourcesDoesNotTreatPartialEmptyAnswerAsDefinitive(t *testing.T) {
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer first.Close()
+	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "temporary outage", http.StatusBadGateway)
+	}))
+	defer second.Close()
+
+	p := New()
+	p.httpClient = first.Client()
+	p.resourceHosts = []string{first.URL, second.URL}
+	if resources, err := p.fetchResources(context.Background(), "token"); err == nil || resources != nil {
+		t.Fatalf("partial empty answer must be unavailable, got resources=%+v err=%v", resources, err)
+	}
+}
+
 func TestFetchResourcesStopsWhenPlexRejectsTheToken(t *testing.T) {
 	calls := 0
 	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

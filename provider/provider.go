@@ -272,7 +272,7 @@ func (p *Provider) CheckAccount(ctx context.Context, req *pluginv1.CheckAccountR
 			return status(pluginv1.CheckAccountStatus_CHECK_ACCOUNT_STATUS_UNAVAILABLE)
 		}
 	}
-	if !Decide(settings, connection.ServerMachineID, connection.OwnerUUID, *user, resources).Allowed {
+	if !Decide(settings, connection.ServerMachineID, connection.OwnerUUID, connection.OwnerID, *user, resources).Allowed {
 		return status(pluginv1.CheckAccountStatus_CHECK_ACCOUNT_STATUS_NOT_PERMITTED)
 	}
 	// An empty token leaves the stored refresh state untouched.

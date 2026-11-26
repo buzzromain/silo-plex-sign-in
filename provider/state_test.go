@@ -211,6 +211,16 @@ func TestConnectionRoundTripAndDisconnectKeepsSettings(t *testing.T) {
 	}
 }
 
+func TestLegacyConnectionMigratesWithoutInventingOwnerID(t *testing.T) {
+	connection, err := decodeConnection([]byte(`{"version":1,"server_machine_id":"srv","owner_uuid":"owner-uuid","owner_token":"token"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if connection.Version != connectionVersion || connection.OwnerID != 0 || connection.ServerMachineID != "srv" {
+		t.Fatalf("legacy connection migration = %+v", connection)
+	}
+}
+
 func TestMigrateJSONRunsEachStepInOrder(t *testing.T) {
 	raw := []byte(`{"version":1,"name":"alex"}`)
 	steps := map[int]jsonStep{

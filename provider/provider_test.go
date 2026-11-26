@@ -265,7 +265,7 @@ func withAccess(t *testing.T, p *Provider, settings Settings, serverID string) *
 	settings.Version = settingsVersion
 	store.put(t, settingsKey, settings)
 	if serverID != "" {
-		store.put(t, connectionKey, plexConnection{Version: 1, ServerMachineID: serverID})
+		store.put(t, connectionKey, plexConnection{Version: connectionVersion, ServerMachineID: serverID, OwnerUUID: "owner-uuid", OwnerID: 1})
 	}
 	p.state = store
 	return store
