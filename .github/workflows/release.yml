@@ -8,11 +8,14 @@ on:
   push:
     tags:
       - 'v*'
+      - '!v*-*'
 
 permissions: {}
 
 jobs:
   release:
+    # Do not publish pre-release tags such as v0.1.0-rc.1.
+    if: ${{ !contains(github.ref_name, '-') }}
     permissions:
       contents: write
       id-token: write

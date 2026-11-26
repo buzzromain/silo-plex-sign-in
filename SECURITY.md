@@ -22,6 +22,14 @@ about the following are in scope:
 - the administration pages: access control, form protection and escaping;
 - the Plex account data passed to Silo or kept in the activity log.
 
+Public sign-in starts are limited by a global cap of 1,000 pending flows, but
+the plugin does not apply a per-client rate limit. Deployments should apply
+request throttling at a trusted Silo or reverse-proxy boundary to reduce PIN
+creation bursts and protect the shared Plex client identity from rate limits.
+The plugin sets anti-framing headers on its responses, but the Silo
+plugin-content proxy may not forward them; verify the headers on the browser-
+facing response before relying on them to protect the admin pages.
+
 Plex PIN approval carries a phishing risk: a person can be tricked into
 approving a PIN requested by someone else. Only approve a Plex request if you
 started the sign-in yourself and recognize the Silo server. After approval,

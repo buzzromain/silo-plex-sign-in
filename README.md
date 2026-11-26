@@ -197,6 +197,8 @@ directly.
   untrusted failures are capped separately.
 - **Owner token:** used to read server-access information. **Disconnect**
   forgets it in the plugin; signing out of Silo does not revoke Plex tokens.
+  The connection also stores the owner's Plex account ID so shared access is
+  checked against the selected server's reported owner.
 - **Pending sign-ins** are kept in memory for up to 10 minutes. After Plex
   approval, the person's Plex token is held in memory until Silo exchanges the
   one-time code or the flow expires; it is then returned to Silo as refresh
@@ -209,9 +211,12 @@ directly.
   PIN requested by someone else. Only approve a Plex request if they started
   this sign-in themselves and recognize the Silo server. After approval, the
   browser that opened the flow can finish it. Flows expire after 10 minutes.
-- The server rule trusts what Plex reports for each account. A server the
-  account owns only counts for the Plex account that connected it, so another
-  person cannot get in by running a server with the same identifier.
+- The server rule trusts what Plex reports for each account. Shared access is
+  accepted only when Plex reports the selected machine identifier with the
+  numeric account ID of the connected server owner; a different account's
+  server with the same identifier does not satisfy the rule. Existing
+  connections created before this owner ID was stored must be reconnected by
+  an administrator before shared users can use the server rule.
 
 Operators should provide their own retention and privacy information suited to
 their deployment.
