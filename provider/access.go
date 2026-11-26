@@ -60,6 +60,7 @@ type ManualEntry struct {
 	UUID     string    `json:"uuid,omitempty"`
 	Username string    `json:"username,omitempty"`
 	Title    string    `json:"title,omitempty"`
+	Email    string    `json:"email,omitempty"`
 	Thumb    string    `json:"thumb,omitempty"`
 	AddedAt  time.Time `json:"added_at"`
 }
@@ -161,16 +162,28 @@ func matchManual(entries []ManualEntry, user plexUser) int {
 }
 
 // learn fills the UUID and display fields of the manual entry that matches
-// user, if it has no UUID yet. It reports whether anything changed.
+// user. A first match learns the identity; later matches only backfill a
+// missing email, so a person added by username ends up with their address. It
+// reports whether anything changed.
 func (s *Settings) learn(user plexUser) bool {
 	i := matchManual(s.Manual, user)
-	if i < 0 || s.Manual[i].UUID != "" || user.UUID == "" {
+	if i < 0 || user.UUID == "" {
 		return false
 	}
-	s.Manual[i].UUID = user.UUID
-	s.Manual[i].Username = user.Username
-	s.Manual[i].Title = user.Title
-	s.Manual[i].Thumb = safeAvatar(user.Thumb)
+	entry := &s.Manual[i]
+	email := strings.TrimSpace(user.Email)
+	if entry.UUID != "" {
+		if entry.Email != "" || email == "" {
+			return false
+		}
+		entry.Email = email
+		return true
+	}
+	entry.UUID = user.UUID
+	entry.Username = user.Username
+	entry.Title = user.Title
+	entry.Email = email
+	entry.Thumb = safeAvatar(user.Thumb)
 	return true
 }
 

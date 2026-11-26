@@ -129,7 +129,7 @@ func TestAdminPeopleAddValidateLearnAndRemove(t *testing.T) {
 	}
 	wantNotice(t, post("ignored"), "added")
 	s, err := p.loadSettings(context.Background())
-	if err != nil || len(s.Manual) != 1 || s.Manual[0].UUID != "ignored-1" {
+	if err != nil || len(s.Manual) != 1 || s.Manual[0].UUID != "ignored-1" || s.Manual[0].Email != "ignored@example.test" {
 		t.Fatalf("directory UUID not learned: %+v, %v", s, err)
 	}
 	if r := post("Ignored"); r.GetStatusCode() != 422 || !strings.Contains(string(r.GetBody()), "Already on the manual list.") {
@@ -247,6 +247,20 @@ func TestPeopleSortAndLocalizedEmptyStates(t *testing.T) {
 			t.Fatalf("empty %s: %d", tt.tab, r.GetStatusCode())
 		}
 		assertCleanHTML(t, body)
+	}
+}
+
+func TestPeopleRowsShowStoredManualEmailWithoutDirectory(t *testing.T) {
+	s := Settings{Manual: []ManualEntry{{
+		Input: "ada", UUID: "u-1", Username: "ada", Email: "ada@example.test",
+	}}}
+	rows, _ := peopleRows(English, s, false, nil)
+	if len(rows) != 1 || rows[0].Email != "ada@example.test" {
+		t.Fatalf("stored email must be shown when Plex is not reached: %+v", rows)
+	}
+	byInput := Settings{Manual: []ManualEntry{{Input: "ada@example.test"}}}
+	if rows, _ := peopleRows(English, byInput, false, nil); len(rows) != 1 || rows[0].Email != "ada@example.test" {
+		t.Fatalf("an address typed as the entry must still be shown: %+v", rows)
 	}
 }
 

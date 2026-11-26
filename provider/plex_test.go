@@ -37,7 +37,7 @@ func plexDirectoryServer(t *testing.T) *httptest.Server {
 				{"uuid":"sam-1","username":"sam","title":"Sam Petit","thumb":"/users/sam/avatar"}]}`))
 		case "/api/v2/shared_servers/owned/accepted":
 			_, _ = w.Write([]byte(`[
-				{"machineIdentifier":"other-server","invited":[{"uuid":"ignored-1","username":"ignored","title":"Ignored"}]},
+				{"machineIdentifier":"other-server","invited":[{"uuid":"ignored-1","username":"ignored","title":"Ignored","email":"ignored@example.test"}]},
 				{"machineIdentifier":"home-server","invited":[
 					{"uuid":"alex-1","username":"alex","title":"Alex Martin"},
 					{"uuid":"sue-1","username":"sue","title":"Sue Shared","email":"sue@example.test","confirmed":true,"thumb":"https://plex.tv/users/sue/avatar"}

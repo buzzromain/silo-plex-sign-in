@@ -148,9 +148,11 @@ directly.
   The plugin holds the token briefly in memory while finishing the flow, then
   returns it to Silo as refresh state. Silo stores it and sends it back for
   re-checks; the plugin does not persist the person's token.
-- **Stored by the plugin in Silo instance state:** the manual list, the
-  selected server, the server owner's Plex token, and the activity log. Silo
-  is responsible for protecting its instance state.
+- **Stored by the plugin in Silo instance state:** the manual list — what the
+  administrator typed, plus the Plex account ID, username, display name,
+  email, and avatar Plex returns for that person — the selected server, the
+  server owner's Plex token, and the activity log. Silo is responsible for
+  protecting its instance state.
 - **Activity log:** stores the newest 100 sign-in attempts, not a fixed number
   of days. New attempts evict older entries. It records the Plex account ID and
   limited display fields; untrusted failures are capped separately.

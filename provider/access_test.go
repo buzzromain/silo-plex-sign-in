@@ -320,6 +320,16 @@ func TestSettingsAddRemoveAndLearn(t *testing.T) {
 	if learner.learn(user) {
 		t.Fatal("a known uuid is not learned again")
 	}
+	confirmed := true
+	if !learner.learn(plexUser{UUID: "u-1", Username: "alex", Email: "alex@example.test", Confirmed: &confirmed}) {
+		t.Fatal("a later sign-in must backfill the missing email")
+	}
+	if e := learner.Manual[0]; e.Email != "alex@example.test" {
+		t.Fatalf("email not stored: %+v", e)
+	}
+	if learner.learn(plexUser{UUID: "u-1", Username: "alex", Email: "other@example.test"}) {
+		t.Fatal("a stored email must not be replaced")
+	}
 	renamed := plexUser{UUID: "u-7", Username: "alex"}
 	if Decide(Settings{Manual: learner.Manual}, "", "", renamed, nil).Allowed {
 		t.Fatal("after learning, the username no longer matches another account")

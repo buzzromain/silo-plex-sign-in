@@ -206,7 +206,8 @@ func (p *Provider) addPerson(ctx context.Context, value string) error {
 		if connection.ServerMachineID != "" && serverAccess(person) {
 			return errServerAccess
 		}
-		entry.UUID, entry.Username, entry.Title, entry.Thumb = person.UUID, person.Username, person.Title, person.Thumb
+		entry.UUID, entry.Username, entry.Title = person.UUID, person.Username, person.Title
+		entry.Email, entry.Thumb = strings.TrimSpace(person.Email), person.Thumb
 	}
 	return p.updateSettings(ctx, func(s *Settings) error { return s.add(entry) })
 }
@@ -469,6 +470,9 @@ func peopleRows(lang Lang, s Settings, hasPlexServer bool, directory []plexDirec
 			row.Tags = append(row.Tags, "manual")
 			row.Redundant = server
 			if row.Email == "" {
+				row.Email = visibleEmail(s.Manual[i].Email)
+			}
+			if row.Email == "" {
 				row.Email = visibleEmail(s.Manual[i].Input)
 			}
 		}
@@ -481,7 +485,10 @@ func peopleRows(lang Lang, s Settings, hasPlexServer bool, directory []plexDirec
 				continue
 			}
 			row := plexPerson(lang, e.Title, e.Username, e.Thumb)
-			row.Email = visibleEmail(e.Input)
+			row.Email = visibleEmail(e.Email)
+			if row.Email == "" {
+				row.Email = visibleEmail(e.Input)
+			}
 			if strings.EqualFold(row.Email, row.Username) {
 				row.Email = ""
 			}
