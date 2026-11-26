@@ -101,7 +101,7 @@ func hasServer(resources []plexResource, serverID, userUUID, ownerUUID string) b
 	}
 	isOwner := ownerUUID != "" && strings.EqualFold(userUUID, ownerUUID)
 	for _, resource := range resources {
-		if resource.ClientIdentifier != serverID || !providesServer(resource.Provides) {
+		if resource.ClientIdentifier != serverID || !isServerResource(resource) {
 			continue
 		}
 		if resource.Owned && !isOwner {
@@ -110,6 +110,17 @@ func hasServer(resources []plexResource, serverID, userUUID, ownerUUID string) b
 		return true
 	}
 	return false
+}
+
+// isServerResource reports whether a Plex resource is a media server. Plex
+// normally advertises that in "provides", but some accounts see their own
+// server registered as "controller" instead; the product name is then the
+// remaining reliable signal.
+func isServerResource(resource plexResource) bool {
+	if resource.ClientIdentifier == "" {
+		return false
+	}
+	return providesServer(resource.Provides) || strings.EqualFold(strings.TrimSpace(resource.Product), "Plex Media Server")
 }
 
 // providesServer reports whether a Plex resource's comma-separated "provides"

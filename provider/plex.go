@@ -16,6 +16,7 @@ import (
 
 // plexUser is a Plex account as plex.tv returns it.
 type plexUser struct {
+	ID         int64  `json:"id"`
 	UUID       string `json:"uuid"`
 	Username   string `json:"username"`
 	Title      string `json:"title"`
@@ -29,8 +30,10 @@ type plexUser struct {
 // plexResource is one device/server the Plex account can see (plex.tv /resources).
 type plexResource struct {
 	Name             string `json:"name"`
+	Product          string `json:"product"`
 	ClientIdentifier string `json:"clientIdentifier"`
 	Provides         string `json:"provides"`
+	OwnerID          int64  `json:"ownerId"`
 	Owned            bool   `json:"owned"`
 }
 
@@ -123,9 +126,11 @@ func (p *Provider) fetchUser(ctx context.Context, token string) (*plexUser, erro
 	return &user, nil
 }
 
-// checkEndpoint pings plex.tv for the Silo connection test. It sends no token.
+// checkEndpoint asks plex.tv for its resource list as the Silo connection
+// test. It sends no token, so Plex answers 401; that still proves the service
+// is reachable.
 func (p *Provider) checkEndpoint(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.endpoint("/api/v2/ping"), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.endpoint("/api/v2/resources?includeHttps=1"), nil)
 	if err != nil {
 		return errors.New("could not prepare Plex connection test")
 	}
@@ -136,7 +141,9 @@ func (p *Provider) checkEndpoint(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	// Any answer below 500 proves the service is up; a 401 is expected when
+	// no token is sent.
+	if resp.StatusCode >= 500 {
 		return fmt.Errorf("Plex sign-in service returned HTTP %d", resp.StatusCode)
 	}
 	return nil
@@ -144,8 +151,26 @@ func (p *Provider) checkEndpoint(ctx context.Context) error {
 
 // fetchResources lists the servers and devices the account can reach. Silo's
 // Plex server appears here for its owner and for every user it is shared with.
+// Plex documents clients.plex.tv for this call; plex.tv is tried first because
+// it has served accounts for years, then the documented host is used when the
+// first answer carries no server at all.
 func (p *Provider) fetchResources(ctx context.Context, token string) ([]plexResource, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.endpoint("/api/v2/resources?includeHttps=1"), nil)
+	resources, err := p.fetchResourcesAt(ctx, p.apiBaseURL, token)
+	if err == nil && hasServerResource(resources) {
+		return resources, nil
+	}
+	if strings.TrimRight(p.apiBaseURL, "/") == plexAPI {
+		if alt, altErr := p.fetchResourcesAt(ctx, plexClientsAPI, token); altErr == nil && hasServerResource(alt) {
+			return alt, nil
+		}
+	}
+	return resources, err
+}
+
+// fetchResourcesAt performs one resource listing against an explicit Plex host.
+func (p *Provider) fetchResourcesAt(ctx context.Context, base, token string) ([]plexResource, error) {
+	endpoint := strings.TrimRight(base, "/") + "/api/v2/resources?includeHttps=1"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -167,6 +192,16 @@ func (p *Provider) fetchResources(ctx context.Context, token string) ([]plexReso
 		return nil, errors.New("Plex returned an invalid server list")
 	}
 	return resources, nil
+}
+
+// hasServerResource reports whether any registration describes a media server.
+func hasServerResource(resources []plexResource) bool {
+	for _, resource := range resources {
+		if isServerResource(resource) {
+			return true
+		}
+	}
+	return false
 }
 
 // setHeaders adds the client identification headers Plex expects on every

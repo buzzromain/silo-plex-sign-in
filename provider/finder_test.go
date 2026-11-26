@@ -238,8 +238,9 @@ func TestFinderReturnReusesTheFlowInTheSameWindow(t *testing.T) {
 
 func TestTestConnectionReportsCurrentAccessState(t *testing.T) {
 	plex := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v2/ping" {
-			w.WriteHeader(http.StatusOK)
+		if r.URL.Path == "/api/v2/resources" {
+			// Plex rejects an unauthenticated probe; that still proves it is up.
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		http.NotFound(w, r)
@@ -268,5 +269,30 @@ func TestTestConnectionReportsCurrentAccessState(t *testing.T) {
 	}
 	if resp, _ := p.TestConnection(context.Background(), &pluginv1.AuthTestConnectionRequest{}); !resp.GetOk() {
 		t.Fatalf("a configured server must pass: %v", resp)
+	}
+}
+
+func TestServersFromFallsBackToOwnerIDWhenOwnedFlagIsMissing(t *testing.T) {
+	resources := []plexResource{
+		{Name: "Mine", ClientIdentifier: "mine-id", Provides: "server", OwnerID: 42},
+		{Name: "Shared with me", ClientIdentifier: "shared-id", Provides: "server", OwnerID: 7},
+	}
+	servers := serversFrom(resources, plexUser{ID: 42})
+	if len(servers) != 1 || servers[0].ID != "mine-id" {
+		t.Fatalf("owner id must identify the account's own server, got %+v", servers)
+	}
+}
+
+func TestServersFromAcceptsServerRegisteredAsController(t *testing.T) {
+	resources := []plexResource{{
+		Name:             "Home",
+		Product:          "Plex Media Server",
+		ClientIdentifier: "home-id",
+		Provides:         "controller",
+		Owned:            true,
+	}}
+	servers := serversFrom(resources, plexUser{ID: 1})
+	if len(servers) != 1 || servers[0].ID != "home-id" {
+		t.Fatalf("a Plex Media Server advertised as controller must still be offered: %+v", servers)
 	}
 }

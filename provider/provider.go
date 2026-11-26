@@ -21,12 +21,13 @@ import (
 )
 
 const (
-	plexAPI      = "https://plex.tv"
-	clientID     = "silo-plugin-auth-plex"
-	productName  = "Plex Sign-In"
-	capabilityID = "plex"
-	flowLifetime = 10 * time.Minute
-	maxFlows     = 1000 // pending sign-in flows; bounds memory and plex.tv PIN requests
+	plexAPI        = "https://plex.tv"
+	plexClientsAPI = "https://clients.plex.tv"
+	clientID       = "silo-plugin-auth-plex"
+	productName    = "Plex Sign-In"
+	capabilityID   = "plex"
+	flowLifetime   = 10 * time.Minute
+	maxFlows       = 1000 // pending sign-in flows; bounds memory and plex.tv PIN requests
 
 	// Version is the plugin version: manifest, X-Plex-Version header and build agree.
 	Version = "0.1.0"

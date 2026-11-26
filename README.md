@@ -123,17 +123,19 @@ person's Plex account, using the Plex token Silo kept from their sign-in:
 
 ## External services and network access
 
-The plugin makes outbound HTTPS requests to `https://plex.tv` only:
+The plugin makes outbound HTTPS requests to `https://plex.tv`, and to the
+`https://clients.plex.tv` address Plex documents for client resource lookups
+when the first host returns no server:
 
 - `POST /api/v2/pins` and `GET /api/v2/pins/<id>`: create and poll the sign-in
   PIN;
 - `GET /api/v2/user`: read the signed-in Plex account;
 - `GET /api/v2/resources`: check whether the account can reach the selected
-  Plex Media Server, and list the owner's servers when connecting;
+  Plex Media Server, list the owner's servers when connecting, and probe
+  Plex's availability for Silo's connection test;
 - `GET /api/v2/home/users` and `GET /api/v2/shared_servers/owned/accepted`:
   list the connected owner's Plex Home members and users who accepted shares
   on any of that owner's servers, for the **Users** tab;
-- `GET /api/v2/ping`: Silo's connection test.
 
 The person's browser is sent to `https://app.plex.tv` to approve the request.
 The plugin contacts no other service and never connects to a Plex Media Server

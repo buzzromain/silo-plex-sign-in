@@ -224,6 +224,7 @@ func (p *Provider) finderPoll(ctx context.Context, viewer httproute.Viewer, req 
 		resources, err = p.fetchResources(ctx, pin.AuthToken)
 	}
 	if err != nil {
+		logger.Warn("connect Plex: resource lookup failed", "error", err)
 		p.mu.Lock()
 		if current := p.finders[flowID]; current != nil {
 			current.failed = true
@@ -231,7 +232,10 @@ func (p *Provider) finderPoll(ctx context.Context, viewer httproute.Viewer, req 
 		p.mu.Unlock()
 		return jsonResponse(http.StatusOK, `{"status":"failed"}`)
 	}
-	servers := serversFrom(resources)
+	servers := serversFrom(resources, *owner)
+	if len(servers) == 0 {
+		logger.Warn("connect Plex: no owned server in Plex answer", "resources", len(resources), "owned", ownedCount(resources))
+	}
 	p.mu.Lock()
 	if current := p.finders[flowID]; current != nil {
 		current.token = pin.AuthToken
@@ -286,14 +290,35 @@ func (p *Provider) finderSelect(ctx context.Context, viewer httproute.Viewer, re
 // serversFrom keeps only Plex Media Servers owned by the signed-in account.
 // Servers merely shared with the account are not configuration candidates:
 // the administrator is choosing their own server, not a friend's server.
-func serversFrom(resources []plexResource) []foundServer {
+func serversFrom(resources []plexResource, owner plexUser) []foundServer {
 	servers := make([]foundServer, 0, len(resources))
 	for _, resource := range resources {
-		if !resource.Owned || !providesServer(resource.Provides) || resource.ClientIdentifier == "" {
+		if !isServerResource(resource) || !ownedBy(resource, owner) {
 			continue
 		}
 		name := publicName(resource.Name)
 		servers = append(servers, foundServer{Name: name, ID: resource.ClientIdentifier})
 	}
 	return servers
+}
+
+// ownedBy reports whether a resource belongs to the signed-in account. Plex
+// normally sets "owned", but also sends "ownerId"; the account id is used when
+// the flag is missing or lagging.
+func ownedBy(resource plexResource, owner plexUser) bool {
+	if resource.Owned {
+		return true
+	}
+	return owner.ID != 0 && resource.OwnerID == owner.ID
+}
+
+// ownedCount counts resources Plex reports as owned, for diagnostics.
+func ownedCount(resources []plexResource) int {
+	count := 0
+	for _, resource := range resources {
+		if resource.Owned {
+			count++
+		}
+	}
+	return count
 }
