@@ -363,7 +363,7 @@ func TestAccessConnectsPlexAndPeopleHoldsTheList(t *testing.T) {
 	}
 	withAccess(t, p, Settings{}, "plex-server-1")
 	body = string(adminRequest(t, p, accessPath, nil, nil, adminHeaders("1")).GetBody())
-	for _, want := range []string{"Access configured", "Plex availability isn’t checked.", "Disconnect server"} {
+	for _, want := range []string{"Access configured", "An access rule is set.", "Disconnect server"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("configured Access lacks %q", want)
 		}

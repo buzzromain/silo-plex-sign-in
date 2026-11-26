@@ -139,7 +139,7 @@ var messagesEN = map[string]string{
 	"finder.back":                     "Back to Plex Sign-In",
 	"finder.select":                   "Select",
 	"finder.waiting":                  "Your servers will appear here once you approve.",
-	"admin.status.hint.ready":         "An access rule is set. Plex availability isn’t checked.",
+	"admin.status.hint.ready":         "An access rule is set.",
 	"admin.status.hint.not_set_up":    "No one can sign in yet. Connect a server or add users.",
 	"admin.status.hint.unavailable":   "Plugin settings couldn’t be read. Reload the page.",
 	"admin.notice.plex_unavailable":   "Plex isn’t responding. Try again shortly.",
