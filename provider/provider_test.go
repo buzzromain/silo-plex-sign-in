@@ -252,6 +252,7 @@ func testProvider(server *httptest.Server) *Provider {
 	store.values[settingsKey], _ = json.Marshal(Settings{Version: settingsVersion, Manual: []ManualEntry{{Input: "alex"}}})
 	p.state = store
 	p.apiBaseURL = server.URL
+	p.resourceHosts = []string{server.URL}
 	p.httpClient = server.Client()
 	p.httpClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	return p

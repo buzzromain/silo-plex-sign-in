@@ -141,9 +141,10 @@ func (p *Provider) checkEndpoint(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
-	// Any answer below 500 proves the service is up; a 401 is expected when
-	// no token is sent.
-	if resp.StatusCode >= 500 {
+	// A 401/403 is the expected answer without a token; anything else must be
+	// a real success for the route we depend on.
+	ok := resp.StatusCode >= 200 && resp.StatusCode < 300
+	if !ok && resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden {
 		return fmt.Errorf("Plex sign-in service returned HTTP %d", resp.StatusCode)
 	}
 	return nil
@@ -152,19 +153,40 @@ func (p *Provider) checkEndpoint(ctx context.Context) error {
 // fetchResources lists the servers and devices the account can reach. Silo's
 // Plex server appears here for its owner and for every user it is shared with.
 // Plex documents clients.plex.tv for this call; plex.tv is tried first because
-// it has served accounts for years, then the documented host is used when the
-// first answer carries no server at all.
+// it has served accounts for years, then the next host is used when the first
+// answer carries no server at all.
 func (p *Provider) fetchResources(ctx context.Context, token string) ([]plexResource, error) {
-	resources, err := p.fetchResourcesAt(ctx, p.apiBaseURL, token)
-	if err == nil && hasServerResource(resources) {
-		return resources, nil
+	hosts := p.resourceHosts
+	if len(hosts) == 0 {
+		hosts = []string{p.apiBaseURL}
 	}
-	if strings.TrimRight(p.apiBaseURL, "/") == plexAPI {
-		if alt, altErr := p.fetchResourcesAt(ctx, plexClientsAPI, token); altErr == nil && hasServerResource(alt) {
-			return alt, nil
+	var (
+		best     []plexResource
+		lastErr  error
+		answered bool
+	)
+	for _, host := range hosts {
+		resources, err := p.fetchResourcesAt(ctx, host, token)
+		if err != nil {
+			// A rejected token is final: another host would say the same.
+			if errors.Is(err, errPlexUnauthorized) {
+				return nil, err
+			}
+			lastErr = err
+			continue
+		}
+		answered = true
+		if hasServerResource(resources) {
+			return resources, nil
+		}
+		if len(resources) > len(best) {
+			best = resources
 		}
 	}
-	return resources, err
+	if answered {
+		return best, nil
+	}
+	return nil, lastErr
 }
 
 // fetchResourcesAt performs one resource listing against an explicit Plex host.

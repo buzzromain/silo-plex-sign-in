@@ -327,12 +327,32 @@ func TestSettingsAddRemoveAndLearn(t *testing.T) {
 	if e := learner.Manual[0]; e.Email != "alex@example.test" {
 		t.Fatalf("email not stored: %+v", e)
 	}
-	if learner.learn(plexUser{UUID: "u-1", Username: "alex", Email: "other@example.test"}) {
-		t.Fatal("a stored email must not be replaced")
+	if !learner.learn(plexUser{UUID: "u-1", Username: "alex", Email: "other@example.test"}) {
+		t.Fatal("a changed email must be refreshed")
+	}
+	if e := learner.Manual[0]; e.Email != "other@example.test" {
+		t.Fatalf("email not refreshed: %+v", e)
+	}
+	if learner.learn(plexUser{UUID: "u-1", Username: "alex"}) {
+		t.Fatal("a missing email must not erase the stored address")
 	}
 	renamed := plexUser{UUID: "u-7", Username: "alex"}
 	if Decide(Settings{Manual: learner.Manual}, "", "", renamed, nil).Allowed {
 		t.Fatal("after learning, the username no longer matches another account")
+	}
+}
+
+func TestServerOwnershipFallsBackToPlexAccountID(t *testing.T) {
+	// The account signed in owns the server that carries the selected
+	// identifier, but it is not the account the administrator connected.
+	own := []plexResource{{ClientIdentifier: "srv", Provides: "server", OwnerID: 7}}
+	if got := Decide(Settings{}, "srv", "owner-uuid", plexUser{UUID: "u-b", ID: 7}, own); got.Allowed {
+		t.Fatalf("another account's own server must not count: %+v", got)
+	}
+	// A server owned by the connected owner is shared with everyone else.
+	shared := []plexResource{{ClientIdentifier: "srv", Provides: "server", OwnerID: 1}}
+	if got := Decide(Settings{}, "srv", "owner-uuid", plexUser{UUID: "u-c", ID: 8}, shared); !got.Allowed {
+		t.Fatalf("a server shared by the connected owner must count: %+v", got)
 	}
 }
 

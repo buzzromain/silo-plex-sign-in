@@ -293,23 +293,13 @@ func (p *Provider) finderSelect(ctx context.Context, viewer httproute.Viewer, re
 func serversFrom(resources []plexResource, owner plexUser) []foundServer {
 	servers := make([]foundServer, 0, len(resources))
 	for _, resource := range resources {
-		if !isServerResource(resource) || !ownedBy(resource, owner) {
+		if !isServerResource(resource) || !ownsResource(resource, owner.ID) {
 			continue
 		}
 		name := publicName(resource.Name)
 		servers = append(servers, foundServer{Name: name, ID: resource.ClientIdentifier})
 	}
 	return servers
-}
-
-// ownedBy reports whether a resource belongs to the signed-in account. Plex
-// normally sets "owned", but also sends "ownerId"; the account id is used when
-// the flag is missing or lagging.
-func ownedBy(resource plexResource, owner plexUser) bool {
-	if resource.Owned {
-		return true
-	}
-	return owner.ID != 0 && resource.OwnerID == owner.ID
 }
 
 // ownedCount counts resources Plex reports as owned, for diagnostics.

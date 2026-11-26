@@ -135,3 +135,58 @@ func TestDirectoryEmailMatchRequiresConfirmation(t *testing.T) {
 		}
 	}
 }
+
+func TestFetchResourcesFallsBackToSecondHost(t *testing.T) {
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[{"name":"Living room","clientIdentifier":"tv","provides":"player"}]`))
+	}))
+	defer first.Close()
+	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[{"name":"Home","clientIdentifier":"srv","provides":"server","owned":true}]`))
+	}))
+	defer second.Close()
+
+	p := New()
+	p.httpClient = first.Client()
+	p.resourceHosts = []string{first.URL, second.URL}
+	resources, err := p.fetchResources(context.Background(), "token")
+	if err != nil || len(resources) != 1 || resources[0].ClientIdentifier != "srv" {
+		t.Fatalf("second host not used: %+v, %v", resources, err)
+	}
+}
+
+func TestFetchResourcesStopsWhenPlexRejectsTheToken(t *testing.T) {
+	calls := 0
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer first.Close()
+	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_, _ = w.Write([]byte(`[{"name":"Home","clientIdentifier":"srv","provides":"server","owned":true}]`))
+	}))
+	defer second.Close()
+
+	p := New()
+	p.httpClient = first.Client()
+	p.resourceHosts = []string{first.URL, second.URL}
+	if _, err := p.fetchResources(context.Background(), "token"); err == nil {
+		t.Fatal("a rejected token must be reported")
+	}
+	if calls != 0 {
+		t.Fatal("a rejected token must not be retried on another host")
+	}
+}
+
+func TestCheckEndpointRejectsAMissingRoute(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+	p := testProvider(server)
+	if err := p.checkEndpoint(context.Background()); err == nil {
+		t.Fatal("404 must fail Silo's connection test")
+	}
+}

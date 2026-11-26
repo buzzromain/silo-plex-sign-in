@@ -84,7 +84,7 @@ func Decide(settings Settings, serverID, ownerUUID string, user plexUser, resour
 		return Decision{Reason: ReasonNotConfigured}
 	case user.UUID == "", user.Restricted, user.Guest:
 		return Decision{Reason: ReasonIneligible}
-	case hasServer(resources, serverID, user.UUID, ownerUUID):
+	case hasServer(resources, serverID, ownerUUID, user):
 		return Decision{Allowed: true, Rule: RuleServer}
 	case matchManual(settings.Manual, user) >= 0:
 		return Decision{Allowed: true, Rule: RuleManual}
@@ -93,24 +93,34 @@ func Decide(settings Settings, serverID, ownerUUID string, user plexUser, resour
 }
 
 // hasServer reports whether resources include the selected Plex Media Server.
-// Anyone can run a server and give it any identifier, so a server the account
-// itself owns counts only when that account is the connected owner. Everyone
-// else must see it as a server shared with them (owned is false).
-func hasServer(resources []plexResource, serverID, userUUID, ownerUUID string) bool {
+// Anyone can run a server and give it any identifier, so a server the signed-in
+// account itself owns counts only when that account is the connected owner.
+// Everyone else must see it as a server shared with them (owned is false).
+func hasServer(resources []plexResource, serverID, ownerUUID string, user plexUser) bool {
 	if serverID == "" {
 		return false
 	}
-	isOwner := ownerUUID != "" && strings.EqualFold(userUUID, ownerUUID)
+	isOwner := ownerUUID != "" && strings.EqualFold(user.UUID, ownerUUID)
 	for _, resource := range resources {
 		if resource.ClientIdentifier != serverID || !isServerResource(resource) {
 			continue
 		}
-		if resource.Owned && !isOwner {
+		if ownsResource(resource, user.ID) && !isOwner {
 			continue
 		}
 		return true
 	}
 	return false
+}
+
+// ownsResource reports whether Plex attributes a resource to the account with
+// this Plex id. "owned" is relative to the token that fetched the list and
+// "ownerId" carries the same account id; either is enough when Plex sends it.
+func ownsResource(resource plexResource, accountID int64) bool {
+	if accountID != 0 && resource.OwnerID != 0 {
+		return resource.OwnerID == accountID
+	}
+	return resource.Owned
 }
 
 // isServerResource reports whether a Plex resource is a media server. Plex
@@ -173,7 +183,9 @@ func (s *Settings) learn(user plexUser) bool {
 	entry := &s.Manual[i]
 	email := strings.TrimSpace(user.Email)
 	if entry.UUID != "" {
-		if entry.Email != "" || email == "" {
+		// Keep the displayed address current without erasing it when Plex
+		// returns no email or only a case difference.
+		if email == "" || strings.EqualFold(entry.Email, email) {
 			return false
 		}
 		entry.Email = email

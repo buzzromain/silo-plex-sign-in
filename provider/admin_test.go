@@ -433,7 +433,7 @@ func TestAdminUXStates(t *testing.T) {
 	if !strings.Contains(missing, "No attempt matches this reference.") {
 		t.Error("an unknown reference must say so")
 	}
-	if !strings.Contains(found, "1 denied in the last 7 days") {
+	if !strings.Contains(found, "1 unresolved denials in the last 7 days") {
 		t.Error("the Activity badge needs an accessible label")
 	}
 

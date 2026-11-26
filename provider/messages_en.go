@@ -153,7 +153,7 @@ var messagesEN = map[string]string{
 	"admin.people.suggestions.text":   "Visible to your Plex account, without access to the selected server.",
 	"admin.people.allow":              "Allow",
 	"admin.people.allow.confirm":      "Allow %s to sign in to Silo? They’ll be added to the manual list. Plex sharing is unchanged.",
-	"admin.activity.refusals":         "%d denied in the last 7 days",
+	"admin.activity.refusals":         "%d unresolved denials in the last 7 days",
 	"admin.activity.find":             "Find by reference",
 	"admin.activity.find.submit":      "Find",
 	"admin.activity.find.none":        "No attempt matches this reference.",

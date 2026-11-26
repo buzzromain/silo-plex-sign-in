@@ -41,8 +41,11 @@ type Provider struct {
 	pluginv1.UnimplementedAuthProviderChecksServer
 	pluginv1.UnimplementedHttpRoutesServer
 
-	httpClient     *http.Client
-	apiBaseURL     string
+	httpClient *http.Client
+	apiBaseURL string
+	// resourceHosts lists the Plex hosts tried for the resource lookup, in
+	// order. Production starts with plex.tv; tests replace the list.
+	resourceHosts  []string
 	mu             sync.Mutex
 	flows          map[string]*pendingFlow
 	pendingCreates int
@@ -86,8 +89,9 @@ func New() *Provider {
 				return http.ErrUseLastResponse
 			},
 		},
-		apiBaseURL: plexAPI,
-		flows:      make(map[string]*pendingFlow),
+		apiBaseURL:    plexAPI,
+		resourceHosts: []string{plexAPI, plexClientsAPI},
+		flows:         make(map[string]*pendingFlow),
 	}
 }
 
