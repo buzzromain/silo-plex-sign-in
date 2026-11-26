@@ -149,6 +149,7 @@ var messagesEN = map[string]string{
 	"admin.people.unknown":            "Unknown Plex user",
 	"admin.activity.title":            "Sign-in attempts",
 	"admin.activity.listed":           "Added to manual list",
+	"admin.activity.server_allowed":   "Now allowed by the Plex server",
 	"admin.notice.busy":               "Too many pending connection requests. Try again in a few minutes.",
 	"admin.people.directory.partial":  "Plex didn’t respond: users allowed by the server may be missing. Sign-in still checks Plex.",
 	"admin.people.suggestions.text":   "Visible to your Plex account, without access to the selected server.",

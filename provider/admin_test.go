@@ -312,7 +312,7 @@ func TestActivityMarksRefusalListedByEmailOrUsername(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			entry := newActivity("REF123", Decision{Reason: ReasonNotAllowed}, tt.user)
-			rows := activityRows(English, Settings{Manual: []ManualEntry{tt.manual}}, []ActivityEntry{entry}, "", time.Now())
+			rows := activityRows(English, Settings{Manual: []ManualEntry{tt.manual}}, []ActivityEntry{entry}, nil, "", time.Now())
 			if len(rows) != 1 || rows[0].Allow || !rows[0].Listed {
 				t.Fatalf("an already listed person must not be offered the action again: %+v", rows)
 			}
@@ -498,7 +498,7 @@ func TestActivityRowsExplainIdentityAndFollowUp(t *testing.T) {
 		{Ref: "AAAAAA", At: now, Outcome: outcomeRefuse, Reason: ReasonNotAllowed, UUID: "u-1", Username: "alex"},
 		{Ref: "BBBBBB", At: now, Outcome: outcomeRefuse, Reason: ReasonExpired},
 		{Ref: "CCCCCC", At: now, Outcome: outcomeRefuse, Reason: ReasonIneligible, UUID: "u-2", Username: "kid"},
-	}, "", now)
+	}, nil, "", now)
 	if !rows[0].Listed || rows[0].Allow {
 		t.Error("a refused person now on the manual list must say so, not offer Allow again")
 	}
@@ -507,5 +507,35 @@ func TestActivityRowsExplainIdentityAndFollowUp(t *testing.T) {
 	}
 	if rows[2].Person.Anonymous || !strings.Contains(rows[2].Detail, "A full Plex account is required") {
 		t.Errorf("ineligible reason must say what to do: %q", rows[2].Detail)
+	}
+}
+
+func TestActivityRowsHideAllowWhenUserWasAddedToPlexServer(t *testing.T) {
+	now := time.Now()
+	rows := activityRows(English, Settings{}, []ActivityEntry{{
+		Ref: "AAAAAA", At: now, Outcome: outcomeRefuse, Reason: ReasonNotAllowed, UUID: "plex-user-1", Username: "alex",
+	}}, map[string]bool{"plex-user-1": true}, "", now)
+	if len(rows) != 1 || rows[0].Allow || !rows[0].ServerAllowed {
+		t.Fatalf("a user now allowed by the Plex server must not have an Allow action: %+v", rows)
+	}
+}
+
+func TestActivityPageRefreshesServerAccessForOldRefusals(t *testing.T) {
+	plex := plexDirectoryServer(t)
+	defer plex.Close()
+	p := testProvider(plex)
+	store := withAccess(t, p, Settings{}, "")
+	store.put(t, connectionKey, plexConnection{Version: connectionVersion, ServerMachineID: "home-server", OwnerToken: "owner-token"})
+	store.put(t, activityKey, []ActivityEntry{{
+		Ref: "AAAAAA", At: time.Now(), Outcome: outcomeRefuse, Reason: ReasonNotAllowed, UUID: "sue-1", Username: "sue",
+	}})
+
+	response := p.renderAdmin(context.Background(), English, adminInput{tab: "activity"}, http.StatusOK)
+	body := string(response.GetBody())
+	if !strings.Contains(body, "Now allowed by the Plex server") {
+		t.Fatal("the old refusal must show that the user now has server access")
+	}
+	if strings.Contains(body, `action="activity/allow"`) {
+		t.Fatal("the old refusal must not offer Allow sign-in after server access is granted")
 	}
 }

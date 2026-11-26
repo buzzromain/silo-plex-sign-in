@@ -321,10 +321,10 @@ type personRow struct {
 
 // activityRow is one access decision on the Activity tab.
 type activityRow struct {
-	Person                                         personRow
-	Ref, When, Absolute, DateTime, Result          string
-	Status, Detail                                 string
-	Allowed, Allow, Highlight, Interrupted, Listed bool
+	Person                                                        personRow
+	Ref, When, Absolute, DateTime, Result                         string
+	Status, Detail                                                string
+	Allowed, Allow, Highlight, Interrupted, Listed, ServerAllowed bool
 }
 
 // renderAdmin keeps the tabs server-rendered; Plex is only contacted when a
@@ -382,7 +382,17 @@ func (p *Provider) renderAdmin(ctx context.Context, lang Lang, in adminInput, st
 		data.RetentionDays = int(activityRetention.Hours() / 24)
 		data.Ref = formatRef(strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(in.ref), "-", "")))
 		data.RefusedOnly = in.show == "refused"
-		data.Activity = activityRows(lang, settings, activity, in.ref, now)
+		var serverUsers map[string]bool
+		if connection.ServerMachineID != "" && connection.OwnerToken != "" {
+			directory, _ := p.loadDirectory(ctx, connection)
+			serverUsers = make(map[string]bool, len(directory))
+			for _, person := range directory {
+				if serverAccess(person) {
+					serverUsers[strings.ToLower(person.UUID)] = true
+				}
+			}
+		}
+		data.Activity = activityRows(lang, settings, activity, serverUsers, in.ref, now)
 		if data.RefusedOnly {
 			refused := data.Activity[:0]
 			for _, row := range data.Activity {
@@ -599,7 +609,7 @@ func manualCovers(e ActivityEntry, s Settings) bool {
 
 // activityRows builds the Activity tab rows in stored order. ref highlights the
 // decision an administrator opened from a refusal reference.
-func activityRows(lang Lang, s Settings, entries []ActivityEntry, ref string, now time.Time) []activityRow {
+func activityRows(lang Lang, s Settings, entries []ActivityEntry, serverUsers map[string]bool, ref string, now time.Time) []activityRow {
 	var rows []activityRow
 	for _, e := range entries {
 		row := activityRow{Person: plexPerson(lang, e.Title, e.Username, e.Thumb), Ref: e.Ref,
@@ -623,7 +633,8 @@ func activityRows(lang Lang, s Settings, entries []ActivityEntry, ref string, no
 				// A refused person added to the manual list afterwards can
 				// now sign in: say so instead of offering the action again.
 				listed := manualCovers(e, s)
-				row.Allow, row.Listed = !listed, listed
+				row.ServerAllowed = serverUsers[strings.ToLower(e.UUID)]
+				row.Allow, row.Listed = !listed && !row.ServerAllowed, listed
 			}
 		}
 		rows = append(rows, row)

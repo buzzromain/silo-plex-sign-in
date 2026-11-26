@@ -1,6 +1,6 @@
 # Plex Sign-In for Silo
 
-Plex Sign-In v0.1.0 is a community Silo plugin that adds a **Plex** button to
+Plex Sign-In is a community Silo plugin that adds a **Plex** button to
 the Silo sign-in page. People sign in with their Plex account, and only people
 you allow can get in: those Plex reports as able to access the server selected
 in Silo, and people you add to a manual list.
@@ -80,8 +80,9 @@ three tabs.
   or denied. A denied person can be added to the manual list from here with
   **Allow sign-in**, without changing Plex sharing. Once the person is on the
   manual list, the button becomes **Added to manual list** and their denied
-  attempts stop counting in the tab badge. The list can be downloaded as CSV
-  with **Export CSV**.
+  attempts stop counting in the tab badge. If they later get access through the
+  selected Plex server, the action is removed and the row says **Now allowed by
+  the Plex server**. The list can be downloaded as CSV with **Export CSV**.
 
 The admin badge reports whether an access source is configured; it does not
 check whether Plex is currently reachable or whether the owner's token is

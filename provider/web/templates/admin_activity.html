@@ -28,6 +28,9 @@
   {{if .Listed}}
 <div class="activity-actions"><span class="tag">{{call $.T "admin.activity.listed"}}</span></div>
 {{end}}
+{{if .ServerAllowed}}
+<div class="activity-actions"><span class="tag">{{call $.T "admin.activity.server_allowed"}}</span></div>
+{{end}}
   {{if .Allow}}
 <div class="activity-actions">
 <form method="post" action="{{$allowAction}}" data-confirm="{{call $.T "admin.activity.allow.confirm" .Person.Name}}"><input type="hidden" name="token" value="{{$.Token}}"><input type="hidden" name="ref" value="{{.Ref}}"><button class="compact" name="action" value="allow" aria-label="{{call $.T "admin.activity.allow"}}: {{.Person.Name}}">{{call $.T "admin.activity.allow"}}</button></form>
