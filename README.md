@@ -77,7 +77,9 @@ three tabs.
   the manual list. Each person's Plex ID appears after their first sign-in.
 - **Activity**: the latest 100 sign-in decisions, allowed or denied. A denied
   person can be added to the manual list from here with **Allow sign-in**,
-  without changing Plex sharing.
+  without changing Plex sharing. Once the person is on the manual list, the
+  button becomes **Added to manual list** and their denied attempts stop
+  counting in the tab badge.
 
 The admin badge reports whether an access source is configured; it does not
 check whether Plex is currently reachable or whether the owner's token is
@@ -155,7 +157,8 @@ directly.
   protecting its instance state.
 - **Activity log:** stores the newest 100 sign-in attempts, not a fixed number
   of days. New attempts evict older entries. It records the Plex account ID and
-  limited display fields; untrusted failures are capped separately.
+  limited display fields, plus non-reversible keys used to match an attempt
+  with the manual list; untrusted failures are capped separately.
 - **Owner token:** used to read server-access information. **Disconnect**
   forgets it in the plugin; signing out of Silo does not revoke Plex tokens.
 - **Pending sign-ins** are kept in memory for up to 10 minutes. After Plex

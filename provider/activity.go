@@ -6,8 +6,11 @@ package provider
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -22,7 +25,8 @@ const (
 )
 
 // ActivityEntry is one final sign-in decision. It never holds a token, PIN
-// code, claim, email or IP address.
+// code, claim, email or IP address: the username and email are reduced to
+// non-reversible keys used to match the attempt with the manual list.
 type ActivityEntry struct {
 	Ref      string     `json:"ref"`
 	At       time.Time  `json:"at"`
@@ -33,6 +37,8 @@ type ActivityEntry struct {
 	Username string     `json:"username,omitempty"`
 	Title    string     `json:"title,omitempty"`
 	Thumb    string     `json:"thumb,omitempty"`
+	NameKey  string     `json:"name_key,omitempty"`
+	EmailKey string     `json:"email_key,omitempty"`
 }
 
 // newRef returns a random six-character reference without look-alike
@@ -59,11 +65,41 @@ func newActivity(ref string, decision Decision, user plexUser) ActivityEntry {
 		Username: publicName(user.Username),
 		Title:    publicName(user.Title),
 		Thumb:    safeAvatar(user.Thumb),
+		NameKey:  decisionKey(user.Username),
+	}
+	if user.Confirmed != nil && *user.Confirmed {
+		entry.EmailKey = emailDecisionKey(user.Email)
 	}
 	if decision.Allowed {
 		entry.Outcome, entry.Rule, entry.Reason = outcomeAllow, decision.Rule, ReasonNone
 	}
 	return entry
+}
+
+// decisionKey is a stable, non-reversible key for a Plex username. The
+// activity log keeps it so an administrator's later manual entry can be
+// matched to a decision without storing the name itself.
+func decisionKey(value string) string {
+	return hashKey(strings.ToLower(normalizeInput(value)))
+}
+
+// emailDecisionKey is decisionKey for a single email address, and empty for
+// anything else so a username is never confused with an address.
+func emailDecisionKey(value string) string {
+	value = strings.TrimSpace(value)
+	if visibleEmail(value) == "" {
+		return ""
+	}
+	return hashKey(strings.ToLower(value))
+}
+
+// hashKey returns the hexadecimal SHA-256 of value, or "" for empty input.
+func hashKey(value string) string {
+	if value == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
 }
 
 // pushActivity puts entry first and keeps at most maxActivity entries.

@@ -264,6 +264,44 @@ func TestPeopleRowsShowStoredManualEmailWithoutDirectory(t *testing.T) {
 	}
 }
 
+func TestActivityMarksRefusalListedByEmailOrUsername(t *testing.T) {
+	confirmed := true
+	for _, tt := range []struct {
+		name   string
+		user   plexUser
+		manual ManualEntry
+	}{
+		{"email typed as the entry", plexUser{UUID: "u-1", Username: "sam@example.test", Confirmed: &confirmed}, ManualEntry{Input: "sam@example.test"}},
+		{"username typed as the entry", plexUser{UUID: "u-2", Username: "sam"}, ManualEntry{Input: "SAM"}},
+		{"email learned on the entry", plexUser{UUID: "u-3", Username: "samuel", Email: "sam@example.test", Confirmed: &confirmed}, ManualEntry{Input: "sam", Email: "sam@example.test"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			entry := newActivity("REF123", Decision{Reason: ReasonNotAllowed}, tt.user)
+			rows := activityRows(English, Settings{Manual: []ManualEntry{tt.manual}}, []ActivityEntry{entry}, "", time.Now())
+			if len(rows) != 1 || rows[0].Allow || !rows[0].Listed {
+				t.Fatalf("an already listed person must not be offered the action again: %+v", rows)
+			}
+		})
+	}
+}
+
+func TestActivityBadgeClearsOnceRefusedPersonIsListed(t *testing.T) {
+	confirmed := true
+	refusal := newActivity("A1B2C3", Decision{Reason: ReasonNotAllowed}, plexUser{UUID: "u-1", Username: "sam@example.test", Confirmed: &confirmed})
+	render := func(manual []ManualEntry) string {
+		p := New()
+		store := withAccess(t, p, Settings{Manual: manual}, "")
+		store.put(t, activityKey, []ActivityEntry{refusal})
+		return string(p.renderAdmin(context.Background(), English, adminInput{tab: "activity"}, http.StatusOK).GetBody())
+	}
+	if body := render([]ManualEntry{{Input: "sam@example.test"}}); strings.Contains(body, "tag-alert") {
+		t.Error("a refusal the manual list now covers must not stay in the badge")
+	}
+	if body := render(nil); !strings.Contains(body, "tag-alert") {
+		t.Error("an unresolved refusal must still be counted")
+	}
+}
+
 func TestAccessConnectsPlexAndPeopleHoldsTheList(t *testing.T) {
 	p := New()
 	withAccess(t, p, Settings{}, "")

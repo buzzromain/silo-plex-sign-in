@@ -311,7 +311,9 @@ func (p *Provider) renderAdmin(ctx context.Context, lang Lang, in adminInput, st
 		data.Notice = noticeKeys["error_state"]
 	}
 	for _, entry := range activity {
-		if isAccessRefusal(entry) && now.Sub(entry.At) <= 7*24*time.Hour {
+		// Only a "not allowed" refusal can be settled by the manual list.
+		covered := entry.Reason == ReasonNotAllowed && manualCovers(entry, settings)
+		if isAccessRefusal(entry) && now.Sub(entry.At) <= 7*24*time.Hour && !covered {
 			data.Refusals++
 		}
 	}
@@ -526,6 +528,28 @@ func isAccessRefusal(e ActivityEntry) bool {
 	return false
 }
 
+// manualCovers reports whether a manual entry now grants access to the account
+// behind a decision. Entries bound to a Plex account match by account ID only;
+// entries still waiting for their first sign-in match by username or by the
+// confirmed email, through the non-reversible keys stored with the decision.
+func manualCovers(e ActivityEntry, s Settings) bool {
+	for _, entry := range s.Manual {
+		if entry.UUID != "" {
+			if e.UUID != "" && strings.EqualFold(entry.UUID, e.UUID) {
+				return true
+			}
+			continue
+		}
+		if e.NameKey != "" && decisionKey(entry.Input) == e.NameKey {
+			return true
+		}
+		if e.EmailKey != "" && (emailDecisionKey(entry.Input) == e.EmailKey || emailDecisionKey(entry.Email) == e.EmailKey) {
+			return true
+		}
+	}
+	return false
+}
+
 // activityRows builds the Activity tab rows in stored order. ref highlights the
 // decision an administrator opened from a refusal reference.
 func activityRows(lang Lang, s Settings, entries []ActivityEntry, ref string, now time.Time) []activityRow {
@@ -551,7 +575,7 @@ func activityRows(lang Lang, s Settings, entries []ActivityEntry, ref string, no
 			if e.Reason == ReasonNotAllowed && e.UUID != "" {
 				// A refused person added to the manual list afterwards can
 				// now sign in: say so instead of offering the action again.
-				listed := matchManual(s.Manual, plexUser{UUID: e.UUID, Username: e.Username}) >= 0
+				listed := manualCovers(e, s)
 				row.Allow, row.Listed = !listed, listed
 			}
 		}
