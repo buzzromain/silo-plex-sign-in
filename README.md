@@ -256,6 +256,8 @@ Tests use local fake servers; they never contact plex.tv or a real Silo.
 
 ## Releases
 
+Current plugin version: `0.1.0`.
+
 Releases are built, signed and published by Silo's shared plugin release
 workflow ([`.github/workflows/release.yml`](.github/workflows/release.yml)):
 

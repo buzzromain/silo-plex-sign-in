@@ -24,7 +24,7 @@ release: check-version
 check-version:
 	@grep -q 'Version = "$(VERSION)"' provider/provider.go || { echo "provider.Version != $(VERSION)"; exit 1; }
 	@grep -q '"version": "$(VERSION)"' manifest.json || { echo "manifest.json != $(VERSION)"; exit 1; }
-	@grep -q 'v$(VERSION)' README.md || { echo "README.md != $(VERSION)"; exit 1; }
+	@grep -Fq 'Current plugin version: `$(VERSION)`.' README.md || { echo "README.md != $(VERSION)"; exit 1; }
 
 test:
 	go test -count=1 -race ./...
