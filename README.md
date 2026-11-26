@@ -104,16 +104,49 @@ for these routes, if available.
    **sign-in reference** they can send to the administrator, who finds the same
    reference in **Activity**.
 
-### Silo accounts
+### Linking a Plex account to a Silo account
 
-With Silo auto-provisioning enabled, a first sign-in can create a Silo account
-from the Plex username, email and display name. Silo assigns its default group.
+The plugin proves who the person is on Plex; Silo owns the Silo account. With
+Silo auto-provisioning enabled, a first Plex sign-in can create an account from
+the Plex username, email and display name, in Silo's default group.
 
-To link an existing Silo account instead, copy the person's Plex ID from
-**Users** after their first sign-in and use Silo's own account-linking screen.
-The plugin cannot see Silo accounts and does not call Silo's administration
-API. If the Silo operator enables it, Silo may also match a confirmed Plex
-email to an existing account.
+To attach Plex to an account that already exists, use one of these.
+
+**The account holder links it.** This needs no administrator API:
+
+1. The person signs in to Silo with their current username and password.
+2. They open **Settings → Account → Sign-in** and connect **Plex**.
+3. Silo asks for the account's current local password, then sends them to Plex.
+   After approval, later Plex sign-ins open that Silo account.
+
+An account without local password sign-in cannot use this flow (Silo answers
+`local_password_required`); an administrator sets a password first.
+
+**An administrator links it by subject.** The Silo admin API accepts the exact
+provider subject:
+
+1. In the plugin's **Users** tab, use the copy button next to the person. It
+   copies the Plex subject, `plex:<uuid>`. The button appears once the plugin
+   knows the account: Plex Home and shared users from the directory, or a
+   manual entry after its first sign-in.
+2. Call `POST /api/v2/admin/users/{account_id}/identities` with the Plex plugin
+   installation and that subject:
+
+   ```json
+   {"installation_id": "<plex plugin installation>", "external_subject": "plex:<uuid>"}
+   ```
+
+3. Linking turns the account's local password sign-in off, unless it is a
+   break-glass account. From then on the person signs in with Plex.
+
+Silo can also match a confirmed Plex email to an existing account when the
+operator enables it, so a matching verified address may link on the first Plex
+sign-in without either step.
+
+Administrators can list and remove linked identities through the Silo admin
+API (`GET` and `DELETE /api/v2/admin/users/{id}/identities`). The plugin itself
+never links, unlinks or edits Silo accounts and does not call Silo's
+administration API.
 
 ### Access re-checks
 
