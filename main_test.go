@@ -41,8 +41,9 @@ func TestManifestRoutes(t *testing.T) {
 		"GET /plex/start": {"public", "plex-start"}, "POST /plex/status": {"public", "plex-status"}, "GET /assets/*": {"public", "plex-assets"},
 		"GET /admin/access":      {"admin", "access-page"},
 		"POST /admin/people/add": {"admin", "people-add"}, "POST /admin/people/remove": {"admin", "people-remove"},
-		"POST /admin/activity/allow": {"admin", "activity-allow"}, "POST /admin/plex/disconnect": {"admin", "plex-disconnect"},
-		"GET /admin/find-server": {"admin", "find-server-page"}, "POST /admin/find-server/start": {"admin", "find-server-start"},
+		"POST /admin/activity/allow": {"admin", "activity-allow"}, "GET /admin/activity/export": {"admin", "activity-export"},
+		"POST /admin/plex/disconnect": {"admin", "plex-disconnect"},
+		"GET /admin/find-server":      {"admin", "find-server-page"}, "POST /admin/find-server/start": {"admin", "find-server-start"},
 		"POST /admin/find-server/poll": {"admin", "find-server-poll"}, "POST /admin/find-server/select": {"admin", "find-server-select"},
 	}
 	for _, route := range m.GetHttpRoutes() {
@@ -66,7 +67,7 @@ func TestManifestRoutes(t *testing.T) {
 	if len(want) != 0 {
 		t.Errorf("missing routes: %v", want)
 	}
-	if got, expected := len(m.GetHttpRoutes()), 12; got != expected {
+	if got, expected := len(m.GetHttpRoutes()), 13; got != expected {
 		t.Errorf("route count = %d, want %d", got, expected)
 	}
 }

@@ -35,6 +35,7 @@ func manifestWithHTTPRoutes() (*pluginv1.PluginManifest, error) {
 		&pluginv1.HttpRouteDescriptor{Id: "people-add", Method: "POST", Path: "/admin/people/add", Access: "admin"},
 		&pluginv1.HttpRouteDescriptor{Id: "people-remove", Method: "POST", Path: "/admin/people/remove", Access: "admin"},
 		&pluginv1.HttpRouteDescriptor{Id: "activity-allow", Method: "POST", Path: "/admin/activity/allow", Access: "admin"},
+		&pluginv1.HttpRouteDescriptor{Id: "activity-export", Method: "GET", Path: "/admin/activity/export", Access: "admin"},
 		&pluginv1.HttpRouteDescriptor{Id: "plex-disconnect", Method: "POST", Path: "/admin/plex/disconnect", Access: "admin"},
 		&pluginv1.HttpRouteDescriptor{Id: "find-server-page", Method: "GET", Path: "/admin/find-server", Access: "admin"},
 		&pluginv1.HttpRouteDescriptor{Id: "find-server-start", Method: "POST", Path: "/admin/find-server/start", Access: "admin"},

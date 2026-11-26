@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewRefUsesTheAlphabet(t *testing.T) {
@@ -34,7 +35,7 @@ func TestNewRefUsesTheAlphabet(t *testing.T) {
 func TestPushActivityKeepsNewestHundred(t *testing.T) {
 	var entries []ActivityEntry
 	for i := range maxActivity + 20 {
-		entries = pushActivity(entries, ActivityEntry{Ref: fmt.Sprint(i), UUID: "u-1"})
+		entries = pushActivity(entries, ActivityEntry{Ref: fmt.Sprint(i), At: time.Now(), UUID: "u-1"})
 	}
 	if len(entries) != maxActivity || entries[0].Ref != fmt.Sprint(maxActivity+19) || entries[maxActivity-1].Ref != "20" {
 		t.Fatalf("len=%d first=%s last=%s", len(entries), entries[0].Ref, entries[len(entries)-1].Ref)
@@ -43,10 +44,10 @@ func TestPushActivityKeepsNewestHundred(t *testing.T) {
 
 func TestUntrustedAttributedFailuresCannotEvictRealDecisions(t *testing.T) {
 	var entries []ActivityEntry
-	entries = pushActivity(entries, ActivityEntry{Ref: "REAL", UUID: "u-real", Outcome: outcomeAllow})
+	entries = pushActivity(entries, ActivityEntry{Ref: "REAL", At: time.Now(), UUID: "u-real", Outcome: outcomeAllow})
 	for i := 0; i < maxAnonymous+5; i++ {
 		entries = pushActivity(entries, ActivityEntry{
-			Ref: newRef(), UUID: "u-attacker", Reason: ReasonExpired, Outcome: outcomeRefuse,
+			Ref: newRef(), At: time.Now(), UUID: "u-attacker", Reason: ReasonExpired, Outcome: outcomeRefuse,
 		})
 	}
 	found := false
@@ -82,12 +83,31 @@ func TestRecordActivityStoresNewestFirst(t *testing.T) {
 	p := New()
 	p.state = newFakeStore()
 	ctx := context.Background()
-	p.recordActivity(ctx, ActivityEntry{Ref: "AAAAAA"})
-	p.recordActivity(ctx, ActivityEntry{Ref: "BBBBBB"})
+	p.recordActivity(ctx, ActivityEntry{Ref: "AAAAAA", At: time.Now()})
+	p.recordActivity(ctx, ActivityEntry{Ref: "BBBBBB", At: time.Now()})
 	entries, err := p.loadActivity(ctx)
 	if err != nil || len(entries) != 2 || entries[0].Ref != "BBBBBB" {
 		t.Fatalf("entries=%+v err=%v", entries, err)
 	}
 	p.state = nil
-	p.recordActivity(ctx, ActivityEntry{Ref: "CCCCCC"}) // must not panic or block
+	p.recordActivity(ctx, ActivityEntry{Ref: "CCCCCC", At: time.Now()}) // must not panic or block
+}
+
+func TestActivityRetentionDropsOldDecisions(t *testing.T) {
+	now := time.Now()
+	old := ActivityEntry{Ref: "OLD111", At: now.Add(-activityRetention - time.Hour), Outcome: outcomeRefuse, Reason: ReasonNotAllowed, UUID: "u-old"}
+	fresh := ActivityEntry{Ref: "NEW222", At: now.Add(-time.Hour), Outcome: outcomeRefuse, Reason: ReasonNotAllowed, UUID: "u-new"}
+
+	p := New()
+	store := withAccess(t, p, Settings{}, "")
+	store.put(t, activityKey, []ActivityEntry{old, fresh})
+	entries, err := p.loadActivity(context.Background())
+	if err != nil || len(entries) != 1 || entries[0].Ref != "NEW222" {
+		t.Fatalf("expired decisions must not be returned: %+v %v", entries, err)
+	}
+
+	pushed := pushActivity([]ActivityEntry{old}, fresh)
+	if len(pushed) != 1 || pushed[0].Ref != "NEW222" {
+		t.Fatalf("expired decisions must not be stored again: %+v", pushed)
+	}
 }

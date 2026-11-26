@@ -15,13 +15,14 @@ import (
 )
 
 const (
-	activityKey   = "plex/activity/v1"
-	maxActivity   = 100
-	maxAnonymous  = 20 // entries with no account; anyone can trigger them
-	refAlphabet   = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
-	refLength     = 6
-	outcomeAllow  = "allowed"
-	outcomeRefuse = "refused"
+	activityKey       = "plex/activity/v1"
+	maxActivity       = 100
+	activityRetention = 30 * 24 * time.Hour // how long a decision stays visible
+	maxAnonymous      = 20                  // entries with no account; anyone can trigger them
+	refAlphabet       = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+	refLength         = 6
+	outcomeAllow      = "allowed"
+	outcomeRefuse     = "refused"
 )
 
 // ActivityEntry is one final sign-in decision. It never holds a token, PIN
@@ -106,7 +107,7 @@ func hashKey(value string) string {
 
 // pushActivity puts entry first and keeps at most maxActivity entries.
 func pushActivity(entries []ActivityEntry, entry ActivityEntry) []ActivityEntry {
-	entries = append([]ActivityEntry{entry}, entries...)
+	entries = append([]ActivityEntry{entry}, pruneActivity(entries, time.Now())...)
 	// Untrusted failures can be triggered by anyone, even when a valid but
 	// expired flow reveals an account UUID. Keep only the newest few so they
 	// never push out genuine access decisions.
@@ -125,6 +126,18 @@ func pushActivity(entries []ActivityEntry, entry ActivityEntry) []ActivityEntry 
 		entries = entries[:maxActivity]
 	}
 	return entries
+}
+
+// pruneActivity drops decisions older than activityRetention. The journal is a
+// support view, not a permanent audit log.
+func pruneActivity(entries []ActivityEntry, now time.Time) []ActivityEntry {
+	kept := entries[:0]
+	for _, entry := range entries {
+		if now.Sub(entry.At) <= activityRetention {
+			kept = append(kept, entry)
+		}
+	}
+	return kept
 }
 
 // recordActivity stores entry and logs the decision. A storage failure is
@@ -151,5 +164,5 @@ func (p *Provider) loadActivity(ctx context.Context) ([]ActivityEntry, error) {
 	if _, err := p.read(ctx, activityKey, &entries); err != nil {
 		return nil, err
 	}
-	return entries, nil
+	return pruneActivity(entries, time.Now()), nil
 }

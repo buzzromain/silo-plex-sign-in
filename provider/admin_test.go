@@ -54,7 +54,7 @@ func TestPeopleCopyIdentityActionIsIconOnly(t *testing.T) {
 
 func TestAdminRoutesRequireAdminAndFormToken(t *testing.T) {
 	p := New()
-	getRoutes := []string{accessPath, finderPath}
+	getRoutes := []string{accessPath, finderPath, activityExportPath}
 	postRoutes := []string{peopleAddPath, peopleRemovePath, activityAllowPath, disconnectPath, finderStartPath, finderStatusPath, finderSelectPath}
 	for _, path := range getRoutes {
 		if r := adminRequest(t, p, path, nil, nil, userHeaders("2")); r.GetStatusCode() != http.StatusForbidden {
@@ -182,7 +182,7 @@ func TestAdminActivity(t *testing.T) {
 		t.Error("the Access denied filter must show only access refusals")
 	}
 	all := string(adminRequest(t, p, accessPath, nil, map[string]any{"tab": "activity"}, adminHeaders("1")).GetBody())
-	if !strings.Contains(all, "Not completed") || !strings.Contains(all, "Expired (10-minute limit)") || !strings.Contains(all, "Keeps the 100 most recent attempts (up to 20 not completed).") {
+	if !strings.Contains(all, "Not completed") || !strings.Contains(all, "Expired (10-minute limit)") || !strings.Contains(all, "Keeps attempts from the last 30 days, at most 100 in total (up to 20 not completed).") {
 		t.Error("interrupted sign-ins and retention must be explained")
 	}
 	if !strings.Contains(all, `aria-label="Sign-in activity"`) && !strings.Contains(all, `tag tag-alert`) {
@@ -261,6 +261,41 @@ func TestPeopleRowsShowStoredManualEmailWithoutDirectory(t *testing.T) {
 	byInput := Settings{Manual: []ManualEntry{{Input: "ada@example.test"}}}
 	if rows, _ := peopleRows(English, byInput, false, nil); len(rows) != 1 || rows[0].Email != "ada@example.test" {
 		t.Fatalf("an address typed as the entry must still be shown: %+v", rows)
+	}
+}
+
+func TestActivityExportIsCSVAndEscapesFormulas(t *testing.T) {
+	p := New()
+	store := withAccess(t, p, Settings{}, "")
+	now := time.Now().UTC()
+	store.put(t, activityKey, []ActivityEntry{
+		{Ref: "AAA111", At: now, Outcome: outcomeRefuse, Reason: ReasonNotAllowed, UUID: "u-1", Username: "alex", Title: "=SUM(1,1)"},
+		{Ref: "BBB222", At: now.Add(-time.Hour), Outcome: outcomeAllow, Rule: RuleManual, UUID: "u-2", Username: "sam", Title: "Sam"},
+	})
+
+	resp := adminRequest(t, p, activityExportPath, nil, nil, adminHeaders("1"))
+	body := string(resp.GetBody())
+	if resp.GetStatusCode() != http.StatusOK || !strings.Contains(resp.GetHeaders()["Content-Type"], "text/csv") {
+		t.Fatalf("export = %d %q", resp.GetStatusCode(), resp.GetHeaders()["Content-Type"])
+	}
+	if cd := resp.GetHeaders()["Content-Disposition"]; !strings.Contains(cd, "attachment") || !strings.Contains(cd, ".csv") {
+		t.Fatalf("export must download a file: %q", cd)
+	}
+	if !strings.HasPrefix(body, "ref,at,outcome,rule,reason,plex_account_id,username,title\n") {
+		t.Fatalf("unexpected header: %q", body)
+	}
+	if !strings.Contains(body, "AAA111,") || !strings.Contains(body, `"'=SUM(1,1)"`) {
+		t.Fatalf("formula-looking value must be escaped: %q", body)
+	}
+	for _, leaked := range []string{"token", "pin", "email_key", "name_key"} {
+		if strings.Contains(body, leaked) {
+			t.Fatalf("export leaks %q: %q", leaked, body)
+		}
+	}
+
+	post := adminRequest(t, p, activityExportPath, url.Values{"token": {p.formToken()}}, nil, adminHeaders("1"))
+	if post.GetStatusCode() != http.StatusMethodNotAllowed {
+		t.Fatalf("export must be read-only, got %d", post.GetStatusCode())
 	}
 }
 

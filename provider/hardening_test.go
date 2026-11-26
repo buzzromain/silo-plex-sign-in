@@ -31,9 +31,9 @@ func TestInitAuthorizeRefusesBeyondMaxFlows(t *testing.T) {
 
 func TestAnonymousActivityCannotEvictRealDecisions(t *testing.T) {
 	var entries []ActivityEntry
-	entries = pushActivity(entries, ActivityEntry{Ref: "REAL", UUID: "u-1", Outcome: outcomeRefuse})
+	entries = pushActivity(entries, ActivityEntry{Ref: "REAL", At: time.Now(), UUID: "u-1", Outcome: outcomeRefuse})
 	for i := 0; i < 500; i++ {
-		entries = pushActivity(entries, ActivityEntry{Ref: newRef(), Outcome: outcomeRefuse})
+		entries = pushActivity(entries, ActivityEntry{Ref: newRef(), At: time.Now(), Outcome: outcomeRefuse})
 	}
 	found := false
 	for _, e := range entries {

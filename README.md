@@ -76,11 +76,12 @@ three tabs.
   not automatically allowed by the selected-server rule. You can add them to
   the manual list. Each person's Plex ID and email appear after their first
   sign-in; a changed email is refreshed on later sign-ins.
-- **Activity**: the latest 100 sign-in decisions, allowed or denied. A denied
-  person can be added to the manual list from here with **Allow sign-in**,
-  without changing Plex sharing. Once the person is on the manual list, the
-  button becomes **Added to manual list** and their denied attempts stop
-  counting in the tab badge.
+- **Activity**: sign-in decisions from the last 30 days, at most 100, allowed
+  or denied. A denied person can be added to the manual list from here with
+  **Allow sign-in**, without changing Plex sharing. Once the person is on the
+  manual list, the button becomes **Added to manual list** and their denied
+  attempts stop counting in the tab badge. The list can be downloaded as CSV
+  with **Export CSV**.
 
 The admin badge reports whether an access source is configured; it does not
 check whether Plex is currently reachable or whether the owner's token is
@@ -156,11 +157,11 @@ directly.
   email, and avatar Plex returns for that person — the selected server, the
   server owner's Plex token, and the activity log. Silo is responsible for
   protecting its instance state.
-- **Activity log:** stores the newest 100 sign-in attempts, not a fixed number
-  of days. New attempts evict older entries. It records the Plex account ID and
-  limited display fields, plus opaque lookup keys used to match an attempt
-  with the manual list (a matching aid, not anonymisation); untrusted failures
-  are capped separately.
+- **Activity log:** stores sign-in attempts from the last 30 days, at most 100.
+  New attempts and the retention window evict older entries. It records the
+  Plex account ID and limited display fields, plus opaque lookup keys used to
+  match an attempt with the manual list (a matching aid, not anonymisation);
+  untrusted failures are capped separately.
 - **Owner token:** used to read server-access information. **Disconnect**
   forgets it in the plugin; signing out of Silo does not revoke Plex tokens.
 - **Pending sign-ins** are kept in memory for up to 10 minutes. After Plex

@@ -3,9 +3,11 @@ package provider
 // Administrator pages: the Plex, Users and Activity tabs and their forms.
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/csv"
 	"encoding/hex"
 	"errors"
 	"net/http"
@@ -18,12 +20,13 @@ import (
 )
 
 const (
-	accessPath        = "/admin/access"
-	peopleAddPath     = "/admin/people/add"
-	peopleRemovePath  = "/admin/people/remove"
-	activityAllowPath = "/admin/activity/allow"
-	disconnectPath    = "/admin/plex/disconnect"
-	maxFormSize       = 64 << 10
+	accessPath         = "/admin/access"
+	peopleAddPath      = "/admin/people/add"
+	peopleRemovePath   = "/admin/people/remove"
+	activityAllowPath  = "/admin/activity/allow"
+	activityExportPath = "/admin/activity/export"
+	disconnectPath     = "/admin/plex/disconnect"
+	maxFormSize        = 64 << 10
 )
 
 var noticeKeys = map[string]string{
@@ -75,6 +78,49 @@ func adminRedirect(location string) *pluginv1.HandleHTTPResponse {
 // accessRedirect returns to the admin page on tab with a notice to display.
 func accessRedirect(tab, notice string) *pluginv1.HandleHTTPResponse {
 	return adminRedirect("../access?" + url.Values{"tab": {tab}, "notice": {notice}}.Encode())
+}
+
+// exportActivity answers GET /admin/activity/export with the retained
+// decisions as CSV. It exposes only what the Activity tab already shows: no
+// token, PIN, claim, email or lookup key.
+func (p *Provider) exportActivity(ctx context.Context, req *pluginv1.HandleHTTPRequest) *pluginv1.HandleHTTPResponse {
+	if _, ok := requireAdmin(req); !ok {
+		return httpResponse(http.StatusForbidden, contentTypeText, English.T("admin.forbidden"))
+	}
+	entries, err := p.loadActivity(ctx)
+	if err != nil {
+		logger.Warn("export activity", "error", err)
+		return httpResponse(http.StatusInternalServerError, contentTypeText, English.T("admin.notice.error_state"))
+	}
+	var buf bytes.Buffer
+	out := csv.NewWriter(&buf)
+	_ = out.Write([]string{"ref", "at", "outcome", "rule", "reason", "plex_account_id", "username", "title"})
+	for _, entry := range entries {
+		_ = out.Write([]string{
+			entry.Ref,
+			entry.At.UTC().Format(time.RFC3339),
+			entry.Outcome,
+			string(entry.Rule),
+			string(entry.Reason),
+			entry.UUID,
+			csvCell(entry.Username),
+			csvCell(entry.Title),
+		})
+	}
+	out.Flush()
+	resp := httpResponse(http.StatusOK, "text/csv; charset=utf-8", buf.String())
+	resp.Headers["Cache-Control"] = "no-store"
+	resp.Headers["Content-Disposition"] = `attachment; filename="plex-sign-in-activity-` + time.Now().UTC().Format("20060102-150405") + `.csv"`
+	return resp
+}
+
+// csvCell protects a spreadsheet from a Plex-provided value being read as a
+// formula when the export is opened in Excel or a similar tool.
+func csvCell(value string) string {
+	if value != "" && strings.ContainsRune("=+-@\t\r", rune(value[0])) {
+		return "'" + value
+	}
+	return value
 }
 
 // handleAdmin owns the Access, People and Activity forms. The route descriptor
@@ -257,7 +303,7 @@ type adminPage struct {
 	ServerName, ServerID, Checked                                  string
 	PlexServer, Connected, FromPost                                bool
 	HasActivity, RefusedOnly                                       bool
-	ActivityLimit, IncompleteLimit, ManualCount                    int
+	ActivityLimit, IncompleteLimit, ManualCount, RetentionDays     int
 	DirectoryPartial, RefNotFound                                  bool
 	People, Suggestions                                            []personRow
 	ShowFilter                                                     bool
@@ -333,6 +379,7 @@ func (p *Provider) renderAdmin(ctx context.Context, lang Lang, in adminInput, st
 		data.ShowFilter = len(data.People) > 8
 	case "activity":
 		data.HasActivity, data.ActivityLimit, data.IncompleteLimit = len(activity) > 0, maxActivity, maxAnonymous
+		data.RetentionDays = int(activityRetention.Hours() / 24)
 		data.Ref = formatRef(strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(in.ref), "-", "")))
 		data.RefusedOnly = in.show == "refused"
 		data.Activity = activityRows(lang, settings, activity, in.ref, now)

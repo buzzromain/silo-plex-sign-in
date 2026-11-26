@@ -322,6 +322,11 @@ func (p *Provider) Handle(ctx context.Context, req *pluginv1.HandleHTTPRequest) 
 			return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
 		}
 		return p.handleAdmin(ctx, req), nil
+	case activityExportPath:
+		if req.GetMethod() != http.MethodGet {
+			return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
+		}
+		return p.exportActivity(ctx, req), nil
 	case finderPath:
 		if req.GetMethod() != http.MethodGet {
 			return httpResponse(http.StatusMethodNotAllowed, "text/plain; charset=utf-8", "method not allowed"), nil
