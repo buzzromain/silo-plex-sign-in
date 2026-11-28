@@ -8,9 +8,11 @@ in Silo, and people you add to a manual list.
 > **Unofficial plugin.** Plex Sign-In is an independent community project. It
 > is not a Plex product and is not affiliated with, sponsored, or endorsed by
 > Plex, Inc. or by Silo. Plex and the Plex logo are trademarks of Plex, Inc.
-> The Plex name and icon are used only to identify the service people sign in
-> with. For help with this plugin, use this repository's issues, not Plex or
-> Silo support.
+> The Silo name and logos belong to their respective owner(s). These names and
+> marks are used only to identify the services this plugin works with. Their
+> use does not imply approval or endorsement, and no trademark rights are
+> granted by this project. For help with this plugin, use this repository's
+> issues, not Plex or Silo support.
 
 ![Plex Sign-In administration, Users tab](docs/screenshots/en-1440-people.png)
 
@@ -278,12 +280,15 @@ Use this repository's
 [issues](https://github.com/buzzromain/silo-plugin-auth-plex/issues) for
 questions and bug reports about the plugin.
 
-## License
+## License and trademarks
 
 Copyright (C) 2026 buzzromain
 
-Plex Sign-In is free software: you can redistribute it and/or modify it under
-the terms of the GNU Affero General Public License as published by the Free
+The plugin's original code is free software: you can redistribute it and/or
+modify it under the GNU Affero General Public License as published by the Free
 Software Foundation, either version 3 of the License, or (at your option) any
 later version. It is distributed WITHOUT ANY WARRANTY; see [`LICENSE`](LICENSE)
-for details. Third-party dependencies keep their own licenses.
+for details. Third-party dependencies keep their own licenses. The AGPL license
+applies to the plugin code; it does not grant rights to Plex or Silo names,
+logos, or other third-party marks. Plex and the Plex logo are trademarks of
+Plex, Inc.; Silo names and logos belong to their respective owner(s).

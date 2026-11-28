@@ -24,6 +24,7 @@
 {{end}}
   {{if eq .Tab "people"}}{{template "admin_people" .}}{{else if eq .Tab "activity"}}{{template "admin_activity" .}}{{else}}{{template "admin_access" .}}{{end}}
 </main>
+<footer class="shell legal-notice muted small" role="contentinfo">Independent community plugin; not affiliated with or endorsed by Plex, Inc. or Silo. Plex and the Plex logo are trademarks of Plex, Inc. Silo names and logos belong to their respective owners.</footer>
 </body></html>{{end}}
 {{define "admin_head"}}
 <meta charset="utf-8">

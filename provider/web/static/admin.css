@@ -38,6 +38,7 @@ body {
 }
 
 .shell { max-width: 1560px; margin-inline: auto; }
+.legal-notice { margin-block: 24px 12px; }
 
 .page-header {
   display: flex;
